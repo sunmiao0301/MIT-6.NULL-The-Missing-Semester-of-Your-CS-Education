@@ -20,7 +20,9 @@ Host root57
 # p.s. 前一个8888是本地的端口 后一个8888是服务器端口
 
 # 然后我们在本地机上ssh登录远程机
-PS C:\Users\hfut_> ssh root57                                                              Last login: Fri Dec 24 15:28:41 2021 from 10.12.3.1                                       root@ceph57 ~ #
+PS C:\Users\hfut_> ssh root57
+Last login: Fri Dec 24 15:28:41 2021 from 10.12.3.1
+root@ceph57 ~ #
 ```
 
 **然后就可以在本地浏览器上访问端口8888，在浏览器输入```http://10.10.8.57:8888```，结果如下**
