@@ -33,3 +33,7 @@ Students spend hundreds of hours using these tools over the course of their educ
 ### About the class
 
 Staff: This class is co-taught by Anish, Jon, and Jose. Questions: Email them at missing-semester@mit.edu.
+
+cn: [missing-semester-cn](https://missing-semester-cn.github.io/)
+
+YouTube: [Lecture videos from the class offered during MIT's Independent Activities Period in 2020.](https://www.youtube.com/playlist?list=PLyzOVJj3bHQuloKGG59rS43e29ro7I57J)
