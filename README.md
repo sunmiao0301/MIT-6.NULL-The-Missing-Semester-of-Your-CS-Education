@@ -1,6 +1,6 @@
 ## MIT-6.NULL-The-Missing-Semester-of-Your-CS-Education
 
-### Why this class
+### Why this 
 
 Classes teach you all about advanced topics within CS, from operating systems to machine learning, but there’s one critical subject that’s rarely covered, and is instead left to students to figure out on their own: proficiency with their tools. We’ll teach you how to master the command-line, use a powerful text editor, use fancy features of version control systems, and much more!
 
@@ -30,7 +30,7 @@ Students spend hundreds of hours using these tools over the course of their educ
 
 1/30/20: [Q&A](https://missing.csail.mit.edu/2020/qa/)
 
-### About the class
+### Reference
 
 Staff: This class is co-taught by Anish, Jon, and Jose. Questions: Email them at missing-semester@mit.edu.
 
