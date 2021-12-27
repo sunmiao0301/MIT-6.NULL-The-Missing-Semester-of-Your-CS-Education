@@ -899,7 +899,7 @@ Host msun
     LocalForward 9999:localhost:8888
 ```
 
-关于上面的LocalForward，zhp推荐Dynamic 可以实现本地一个端口对接服务器多个端口，这里需要单独开一篇[动态端口转发](https://github.com/sunmiao0301/Self-Study/blob/main/00The-Missing-Semester-of-Your-CS-Education/051LocalForward%20and%20DynamicForward.MD)来单独详细介绍了
+关于上面的LocalForward，zhp推荐Dynamic 可以实现本地一个端口对接服务器多个端口，这里需要单独开一篇[动态端口转发]()来单独详细介绍了
 
 然后使用 `ssh-copy-id vm` 将您的 ssh 密钥拷贝到服务器。
 
@@ -995,6 +995,28 @@ zhp/
 (附加题) 在虚拟机中安装 [`mosh`](https://mosh.org/) 并启动连接。然后断开服务器/虚拟机的网络适配器。mosh可以恢复连接吗？
 
 (附加题) 查看`ssh`的`-N` 和 `-f` 选项的作用，找出在后台进行端口转发的命令是什么？
+
+**在做之前需要明确的：对于我们的情境，ssh是用于本地机的指令。**
+
+```bash
+# 原本 我们是
+PS C:\Users\hfut_> ssh root57
+Last login: Mon Dec 27 09:29:48 2021 from 10.12.3.1
+root@ceph57 ~ # 
+
+-N      Do not execute a remote command.  This is useful for just forwarding ports.
+
+-f      Requests ssh to go to background just before command execution.  This is useful if ssh is going to ask for passwords or passphrases, but the user wants it in the background.  This implies -n.  The recommended way to start X11 programs at a remote site is with something like ssh -f host xterm.
+
+If the ExitOnForwardFailure configuration option is set to ``yes'', then a client started with -f will wait for all remote port forwards to be successfully established before placing itself in the background.
+
+# 由上可知 -N 使得不执行远端命令 对端口转发生效
+# -f 使得在后台执行
+# 所以如果想要本地机在后台进行端口转发的命令 应该是
+PS C:\Users\hfut_> ssh -fN root57
+```
+
+
 
 ## Supplement from video
 
