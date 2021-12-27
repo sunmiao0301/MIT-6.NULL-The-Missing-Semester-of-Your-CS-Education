@@ -265,6 +265,7 @@ Git 处理这些场景的方法是使用一种叫做 “暂存区（staging area
 3. 使用 Git 时的一个常见错误是提交本不应该由 Git 管理的大文件，或是将含有敏感信息的文件提交给 Git 。尝试向仓库中添加一个文件并添加提交信息，然后将其从历史中删除 ( [这篇文章也许会有帮助](https://help.github.com/articles/removing-sensitive-data-from-a-repository/))；
 
    ```bash
+   # ssh到本地
    hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo (master)
    $ git clone git@github.com:sunmiao0301/Public-Pic-Bed.git
    Cloning into 'Public-Pic-Bed'...
@@ -275,29 +276,35 @@ Git 处理这些场景的方法是使用一种叫做 “暂存区（staging area
    Receiving objects: 100% (28/28), 438.95 KiB | 487.00 KiB/s, done.
    Resolving deltas: 100% (5/5), done.
    
+   # 进入repository
    hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo (master)
    $ cd Public-Pic-Bed
    
+   # 看文件
    hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
    $ ls
    1216Ceph_stack.png  1224SwitchOmega.png  1227git.png
    1224Dynamic.png     1224local.png        211216zhp1.png
    1224LaTex.png       1224tanshe1.png      README.md
    
+   # 新建一个txt
    hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
    $ echo "pw is 123" > pw.txt
    
+   # done
    hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
    $ ls
    1216Ceph_stack.png  1224SwitchOmega.png  1227git.png     pw.txt
    1224Dynamic.png     1224local.png        211216zhp1.png
    1224LaTex.png       1224tanshe1.png      README.md
    
+   # add
    hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
    $ git add .
    warning: LF will be replaced by CRLF in pw.txt.
    The file will have its original line endings in your working directory
    
+   # done
    hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
    $ git status
    On branch main
@@ -307,12 +314,14 @@ Git 处理这些场景的方法是使用一种叫做 “暂存区（staging area
      (use "git restore --staged <file>..." to unstage)
            new file:   pw.txt
    
+   # commit
    hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
    $  git commit -m "my password"
    [main 156a097] my password
     1 file changed, 1 insertion(+)
     create mode 100644 pw.txt
    
+   # done
    hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
    $ git status
    On branch main
@@ -321,6 +330,7 @@ Git 处理这些场景的方法是使用一种叫做 “暂存区（staging area
    
    nothing to commit, working tree clean
    
+   # 看日志
    hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
    $ git log HEAD
    commit 156a09768a474b4ad74ae6a6488716a48df03fe3 (HEAD -> main)
@@ -329,9 +339,11 @@ Git 处理这些场景的方法是使用一种叫做 “暂存区（staging area
    
        my password
    
+   # 回退
    hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
    $ git reset --soft HEAD^
    
+   # done
    hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
    $ git status
    On branch main
@@ -373,4 +385,305 @@ Git 处理这些场景的方法是使用一种叫做 “暂存区（staging area
    在本地进行修改后，提交到 fork 后的仓库，然后发起 PR 即可
    ```
 
+   ## Supplement from video
+
+   ```bash
+   ~
+   $ cd /d
    
+   /d (master)
+   $ mkdir demo
+   
+   /d (master)
+   $ cd demo
+   
+   /d/demo (master)
+   $ ls
+   
+   /d/demo (master)
+   $ git init
+   Initialized empty Git repository in D:/demo/.git/
+   
+   /d/demo (master)
+   $ ls
+   
+   # git init 使得生成了隐藏文件
+   /d/demo (master)
+   $ ls -a
+   ./  ../  .git/
+   
+   /d/demo (master)
+   $ ls .git
+   HEAD  config  description  hooks/  info/  objects/  refs/
+   
+   # 如下命令会打开一个网页 关于git init的讲解
+   /d/demo (master)
+   $ git help init
+   
+   /d/demo (master)
+   $ echo "hello world" > hello.txt
+   
+   /d/demo (master)
+   $ ls
+   hello.txt
+   
+   /d/demo (master)
+   $ git status
+   On branch master
+   
+   No commits yet
+   # it mains that there is a new created file in currently file but not included in the next snapshot
+   Untracked files:
+     (use "git add <file>..." to include in what will be committed)
+           hello.txt
+   
+   nothing added to commit but untracked files present (use "git add" to track)
+   
+   /d/demo (master)
+   $ git add hello.txt
+   warning: LF will be replaced by CRLF in hello.txt.
+   The file will have its original line endings in your working directory
+   
+   /d/demo (master)
+   $ git status
+   On branch master
+   
+   No commits yet
+   
+   Changes to be committed:
+     (use "git rm --cached <file>..." to unstage)
+           new file:   hello.txt
+   
+   # run git commit
+   
+   Add hello.txt
+   # Please enter the commit message for your changes. Lines starting
+   # with '#' will be ignored, and an empty message aborts the commit.
+   #
+   # On branch master
+   #
+   # Initial commit
+   #
+   # Changes to be committed:
+   #       new file:   hello.txt
+   #
+   ~
+   ~
+   ~
+   ~
+   ~
+   ~
+   ~
+   ~
+   ~
+   ~
+   ~
+   D:/demo/.git/COMMIT_EDITMSG [unix] (14:27 27/12/2021)                  1,0-1 All
+   "D:/demo/.git/COMMIT_EDITMSG" [unix] 11L, 231B
+   
+   # Esc -> :x
+   
+   /d/demo (master)
+   $ git commit
+   [master (root-commit) c87b88b] Add hello.txt
+    1 file changed, 1 insertion(+)
+    create mode 100644 hello.txt
+   
+   /d/demo (master)
+   $ git log
+   commit c87b88b4bef7456bc621f711b25464c0fb19fb6b (HEAD -> master)
+   Author: sunmiao0301 <hfut_sm@163.com>
+   Date:   Mon Dec 27 14:27:13 2021 +0800
+   
+       Add hello.txt
+   
+   /d/demo (master)
+   $ echo "another line" >> hello.txt
+   
+   /d/demo (master)
+   $ cat hello.txt
+   hello world
+   another line
+   
+   # 因为只是做了修改 而没有将其add到目前的暂存区中 所以无法commit
+   /d/demo (master)
+   $ git commit
+   On branch master
+   Changes not staged for commit:
+     (use "git add <file>..." to update what will be committed)
+     (use "git restore <file>..." to discard changes in working directory)
+           modified:   hello.txt
+   
+   no changes added to commit (use "git add" and/or "git commit -a")
+   
+   /d/demo (master)
+   $ git add hello.txt
+   warning: LF will be replaced by CRLF in hello.txt.
+   The file will have its original line endings in your working directory
+   
+   /d/demo (master)
+   $ git status
+   On branch master
+   # this file is ready to be commit
+   Changes to be committed:
+     (use "git restore --staged <file>..." to unstage)
+           modified:   hello.txt
+   
+   /d/demo (master)
+   $ git commit
+   [master 7d7b3d9] X
+    1 file changed, 1 insertion(+)
+   
+   # the new change has made
+   
+   # github is a host for github repositories
+   
+   /d/demo (master)
+   $ git log --all --graph  --decorate
+   #### 可以看到 目前的head -> master
+   * commit 7d7b3d91e0121a5e141b3768db7653767bb46b1d (HEAD -> master)
+   | Author: sunmiao0301 <hfut_sm@163.com>
+   | Date:   Mon Dec 27 14:38:41 2021 +0800
+   |
+   |     X
+   |
+   * commit c87b88b4bef7456bc621f711b25464c0fb19fb6b
+     Author: sunmiao0301 <hfut_sm@163.com>
+     Date:   Mon Dec 27 14:27:13 2021 +0800
+   
+         Add hello.txt
+   
+   /d/demo (master)
+   $ git checkout c87b88b4
+   Note: switching to 'c87b88b4'.
+   
+   You are in 'detached HEAD' state. You can look around, make experimental
+   changes and commit them, and you can discard any commits you make in this
+   state without impacting any branches by switching back to a branch.
+   
+   If you want to create a new branch to retain commits you create, you may
+   do so (now or later) by using -c with the switch command. Example:
+   
+     git switch -c <new-branch-name>
+   
+   Or undo this operation with:
+   
+     git switch -
+   
+   Turn off this advice by setting config variable advice.detachedHead to false
+   
+   HEAD is now at c87b88b Add hello.txt
+   
+   /d/demo ((c87b88b...))
+   $ git log --all --graph  --decorate
+   * commit 7d7b3d91e0121a5e141b3768db7653767bb46b1d (master)
+   | Author: sunmiao0301 <hfut_sm@163.com>
+   | Date:   Mon Dec 27 14:38:41 2021 +0800
+   |
+   |     X
+   |
+   * commit c87b88b4bef7456bc621f711b25464c0fb19fb6b (HEAD)
+   #### 可以看到head来到了这儿
+     Author: sunmiao0301 <hfut_sm@163.com>
+     Date:   Mon Dec 27 14:27:13 2021 +0800
+   
+         Add hello.txt
+   
+   /d/demo ((c87b88b...))
+   
+   /d/demo ((c87b88b...))
+   $ git checkout master
+   Previous HEAD position was c87b88b Add hello.txt
+   Switched to branch 'master'
+   
+   /d/demo (master)
+   $ cat hello.txt
+   hello world
+   another line
+   
+   # do some new change
+   /d/demo (master)
+   $ vim hello.txt
+   
+   # notice! git check will destory some of your modification if you are not care about it
+   
+   /d/demo (master)
+   $ git diff c87b88b4 hello.txt
+   diff --git a/hello.txt b/hello.txt
+   index 3b18e51..8b5ce7a 100644
+   --- a/hello.txt
+   +++ b/hello.txt
+   @@ -1 +1,3 @@
+    hello world
+   +another line
+   +yet another line
+   
+   /d/demo (master)
+   $ git branch
+   * master
+   
+   /d/demo (master)
+   $ git branch -vv
+   * master 7d7b3d9 X
+   
+   /d/demo (master)
+   $ git branch cat
+   
+   /d/demo (master)
+   $ git log --all --graph  --decorate
+   * commit 7d7b3d91e0121a5e141b3768db7653767bb46b1d (HEAD -> master, cat)
+   | Author: sunmiao0301 <hfut_sm@163.com>
+   | Date:   Mon Dec 27 14:38:41 2021 +0800
+   |
+   |     X
+   |
+   * commit c87b88b4bef7456bc621f711b25464c0fb19fb6b
+     Author: sunmiao0301 <hfut_sm@163.com>
+     Date:   Mon Dec 27 14:27:13 2021 +0800
+   
+         Add hello.txt
+   
+   /d/demo (master)
+   
+   /d/demo (master)
+   $ git checkout cat
+   Switched to branch 'cat'
+   M       hello.txt
+   
+   /d/demo (cat)
+   $ git log --all --graph  --decorate
+   * commit 7d7b3d91e0121a5e141b3768db7653767bb46b1d (HEAD -> cat, master)
+   | Author: sunmiao0301 <hfut_sm@163.com>
+   | Date:   Mon Dec 27 14:38:41 2021 +0800
+   |
+   |     X
+   |
+   * commit c87b88b4bef7456bc621f711b25464c0fb19fb6b
+     Author: sunmiao0301 <hfut_sm@163.com>
+     Date:   Mon Dec 27 14:27:13 2021 +0800
+   
+         Add hello.txt
+   
+   /d/demo (cat)
+   $ git diff
+   diff --git a/hello.txt b/hello.txt
+   index fdff486..8b5ce7a 100644
+   --- a/hello.txt
+   +++ b/hello.txt
+   @@ -1,2 +1,3 @@
+    hello world
+    another line
+   +yet another line
+   
+   /d/demo (cat)
+   $ git log --all --graph  --decorate --oneline
+   * 7d7b3d9 (HEAD -> cat, master) X
+   * c87b88b Add hello.txt
+   
+   ... 53:29
+   ```
+
+   
+
+
+
