@@ -202,16 +202,135 @@ Keybase主要使用[社交网络证明 (social proof)](https://keybase.io/blog/c
    从[Debian镜像站](https://www.debian.org/CD/http-ftp/)下载一个光盘映像（比如这个来自阿根廷镜像站的[映像](http://debian.xfree.com.ar/debian-cd/10.2.0/amd64/iso-cd/debian-10.2.0-amd64-netinst.iso)）。使用`sha256sum`命令对比下载映像的哈希值和官方Debian站公布的哈希值。如果你下载了上面的映像，官方公布的哈希值可以参考[这个文件](https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/SHA256SUMS)。
 
    ```bash
+   # p.s. curl与wget的区别 当想要直接通过 Linux 命令行下载文件，马上就能想到两个工具：wget 和 cURL。它们有很多一样的特征，可以很轻易的完成一些相同的任务，虽然它们有一些相似的特征，但它们并不是完全一样。这两个程序适用与不同的场合，在特定场合下，都拥有各自的特性。
+   
+   # 在Linux下 下载所需文件
+   # 若是下载到指定目录 用-P即可
+   # 若是下载到指定目录并且重新命名 使用-O即可 为防止影响散列值 就不重命名了
+   root@ceph57 ~/summiao/debian
+   # wget -P . https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-11.2.0-amd64-netinst.iso
+   --2021-12-28 09:50:51--  https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-11.2.0-amd64-netinst.iso
+   Resolving cdimage.debian.org (cdimage.debian.org)... 194.71.11.173, 194.71.11.165, 2001:6b0:19::165, ...
+   Connecting to cdimage.debian.org (cdimage.debian.org)|194.71.11.173|:443... connected.
+   HTTP request sent, awaiting response... 302 Found
+   Location: https://laotzu.ftp.acc.umu.se/debian-cd/current/amd64/iso-cd/debian-11.2.0-amd64-netinst.iso [following]
+   --2021-12-28 09:50:52--  https://laotzu.ftp.acc.umu.se/debian-cd/current/amd64/iso-cd/debian-11.2.0-amd64-netinst.iso
+   Resolving laotzu.ftp.acc.umu.se (laotzu.ftp.acc.umu.se)... 194.71.11.166, 2001:6b0:19::166
+   Connecting to laotzu.ftp.acc.umu.se (laotzu.ftp.acc.umu.se)|194.71.11.166|:443... connected.
+   HTTP request sent, awaiting response... 200 OK
+   Length: 396361728 (378M) [application/x-iso9660-image]
+   Saving to: ‘./debian-11.2.0-amd64-netinst.iso’
+   
+   100%[==================================================================>] 396,361,728 9.87MB/s   in 45s    
+   
+   2021-12-28 09:51:38 (8.47 MB/s) - ‘./debian-11.2.0-amd64-netinst.iso’ saved [396361728/396361728]
+   
    # 在Linux下 sha1sum <file full name> 即可得到文件的散列值
+   root@ceph57 ~/summiao/debian
+   # sha256sum debian-11.2.0-amd64-netinst.iso
+   45c9feabba213bdc6d72e7469de71ea5aeff73faea6bfb109ab5bad37c3b43bd  debian-11.2.0-amd64-netinst.iso
+   
+   # 然后下载一下官方的散列值
+   root@ceph57 ~/summiao/debian
+   # wget -P . https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/SHA256SUMS
+   --2021-12-28 09:56:47--  https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/SHA256SUMS
+   Resolving cdimage.debian.org (cdimage.debian.org)... 194.71.11.173, 194.71.11.165, 2001:6b0:19::165, ...
+   Connecting to cdimage.debian.org (cdimage.debian.org)|194.71.11.173|:443... connected.
+   HTTP request sent, awaiting response... 200 OK
+   Length: 302
+   Saving to: ‘./SHA256SUMS’
+   
+   100%[==================================================================>] 302         --.-K/s   in 0s      
+   
+   2021-12-28 09:56:48 (22.4 MB/s) - ‘./SHA256SUMS’ saved [302/302]
+   
+   # 进行比对
+   root@ceph57 ~/summiao/debian
+   # cat SHA256SUMS
+   45c9feabba213bdc6d72e7469de71ea5aeff73faea6bfb109ab5bad37c3b43bd  debian-11.2.0-amd64-netinst.iso
+   9b87561bb799746da198301bff9e182ca36c59c999ce128a5c83738be1f14e53  debian-edu-11.2.0-amd64-netinst.iso
+   011f6754601985f46fcc670ce02faabcc8b5b8aadf51bc3d3fcfa3185b96b1df  debian-mac-11.2.0-amd64-netinst.iso
+   
+   # 发现一致 镜像站没有问题 下面尝试使用diff （当然 diff 还有很多种用法）
+   # diff <(sha256sum debian-11.2.0-amd64-netinst.iso) SHA256SUMS -y -W 50
+   45c9feabba213bdc6d72e	45c9feabba213bdc6d72e
+   		      >	9b87561bb799746da1983
+   		      >	011f6754601985f46fcc6
    ```
 
 3. **对称加密** 
 
    使用 [OpenSSL](https://www.openssl.org/)的AES模式加密一个文件: `openssl aes-256-cbc -salt -in {源文件名} -out {加密文件名}`。 使用`cat`或者`hexdump`对比源文件和加密的文件，再用 `openssl aes-256-cbc -d -in {加密文件名} -out {解密文件名}` 命令解密刚刚加密的文件。最后使用`cmp`命令确认源文件和解密后的文件内容相同。
 
+   ```bash
+   root@ceph57 ~/summiao
+   # cat hello.txt
+   hello
+   
+   root@ceph57 ~/summiao
+   # openssl aes-256-cbc -salt -in hello.txt -out sechello.txt
+   enter aes-256-cbc encryption password:
+   Verifying - enter aes-256-cbc encryption password:
+   
+   # hexdump - display file contents in ascii, decimal, hexadecimal, or octal
+   root@ceph57 ~/summiao
+   # hexdump hello.txt
+   0000000 6568 6c6c 0a6f                         
+   0000006
+   root@ceph57 ~/summiao
+   # hexdump sechello.txt
+   0000000 6153 746c 6465 5f5f 0828 3a81 a3cc 21bc
+   0000010 d881 24fe 3874 dc55 3c57 528a bae7 334c
+   0000020
+   
+   # 使用cat对比
+   root@ceph57 ~/summiao
+   # cat hello.txt
+   hello
+   root@ceph57 ~/summiao
+   # cat sechello.txt
+   Salted__:̣¼!پ$t8Uۗ<R繌3
+   
+   # 进行解密
+   root@ceph57 ~/summiao
+   # openssl aes-256-cbc -d -in sechello.txt -out dhello.txt
+   enter aes-256-cbc decryption password:
+   root@ceph57 ~/summiao
+   # cat dhello.txt
+   hello
+   root@ceph57 ~/summiao
+   # hexdump dhello.txt
+   0000000 6568 6c6c 0a6f                         
+   0000006
+   ```
+
 4. 非对称加密
 
    1. 在你自己的电脑上使用更安全的[ED25519算法](https://wiki.archlinux.org/index.php/SSH_keys#Ed25519)生成一组[SSH 密钥对](https://www.digitalocean.com/community/tutorials/how-to-set-up-ssh-keys--2)。**为了确保私钥不使用时的安全，一定使用密码加密你的私钥。**
+
    2. [配置GPG](https://www.digitalocean.com/community/tutorials/how-to-use-gpg-to-encrypt-and-sign-messages)。
+
    3. 给Anish发送一封加密的电子邮件（[Anish的公钥](https://keybase.io/anish)）。
+
    4. 使用`git commit -S`命令签名一个Git提交，并使用`git show --show-signature`命令验证这个提交的签名。或者，使用`git tag -s`命令签名一个Git标签，并使用`git tag -v`命令验证标签的签名。
+
+    ```bash
+   # 进行签名时 发生错误 见网址解决办法 
+   # https://stackoverflow.com/questions/41052538/git-error-gpg-failed-to-sign-data
+   /d/demo (cat)
+   $ git commit -S -m "signature"
+   gpg: directory '/c/Users/hfut_/.gnupg' created
+   gpg: keybox '/c/Users/hfut_/.gnupg/pubring.kbx' created
+   gpg: skipped "sunmiao0301 <hfut_sm@163.com>": No secret key
+   gpg: signing failed: No secret key
+   error: gpg failed to sign the data
+   fatal: failed to write commit object
+   
+   # make sure git use gpg2 and not gpg
+   /d/demo (cat)
+   $ git config --global gpg.program gpg2
+   
+   /d/demo (cat)
+   $
+   ...
+    ```
