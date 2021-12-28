@@ -374,6 +374,35 @@ missing:~$ curl --head --silent google.com | grep --ignore-case content-length |
 
 有一件事情是您必须作为根用户才能做的，那就是向 `sysfs` 文件写入内容。系统被挂载在 `/sys` 下，`sysfs` 文件则暴露了一些内核（kernel）参数。 因此，您不需要借助任何专用的工具，就可以轻松地在运行期间配置系统内核。**注意 Windows 和 macOS 没有这个文件**
 
+```bash
+root@ceph57 ~
+# cd /
+root@ceph57 /
+# ls
+bin   clustre.yaml  etc   lib    loop.txt  mnt  proc  run   srv  tmp  var
+boot  dev           home  lib64  media     opt  root  sbin  sys  usr
+root@ceph57 /
+# cd home
+root@ceph57 /home
+# ls
+msun  msundocker
+root@ceph57 /home
+# cd msun
+root@ceph57 /home/msun
+# ls
+d_for_find  dotfiles.md  loop      ls.txt     show-args.sh  xargs.html
+dir         hello.txt    loop.txt  nohup.out  spa ce.html
+root@ceph57 /home/msun
+
+# tree一下 其中的关键文件是: root和home在根目录下，其他用户在home下
+/
+├── root
+├── home
+│   ├── user1
+│   └── user2
+└── ...
+```
+
 例如，您笔记本电脑的屏幕亮度写在 `brightness` 文件中，它位于
 
 ```
@@ -530,10 +559,12 @@ curl --head --silent https://missing.csail.mit.edu
 ~                                                      
 ## 然后是cat
 msun@ubuntu:/tmp/missing$ vim semester_cat
+
 msun@ubuntu:/tmp/missing$ cat>semester_cat<<EOF
 #!/bin/sh
 curl --head --silent https://missing.csail.mit.edu
 EOF
+
 msun@ubuntu:/tmp/missing$ vim semester_cat
 #!/bin/sh
 curl --head --silent https://missing.csail.mit.edu
@@ -694,8 +725,4 @@ drwxr-xr-x.  19 root root  267 Nov 30 14:10 var
 ## 奇技淫巧
 jon@xpanse intel_backlight ~ $ echo 1060 | sudo tee brightness
 ```
-
-
-
-
 
