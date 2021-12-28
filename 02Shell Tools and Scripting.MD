@@ -1,5 +1,7 @@
 ### shell脚本 — 进阶
 
+*—— 课后练习3未作*
+
 上一节课，我们已经学习来如何在shell中执行命令，并使用管道将命令组合使用。但是，很多情况下我们需要执行一系列的操作并使用条件或循环这样的控制流。
 
 由此，shell 脚本应运而生，也更加复杂。
@@ -427,19 +429,45 @@ Fasd 基于 [*frecency*](https://developer.mozilla.org/en-US/docs/Mozilla/Tech/P
 2. 编写两个bash函数 `marco` 和 `polo` 执行下面的操作。 每当你执行 `marco` 时，当前的工作目录应当以某种形式保存，当执行 `polo` 时，无论现在处在什么目录下，都应当 `cd` 回到当时执行 `marco` 的目录。 为了方便debug，你可以把代码写在单独的文件 `marco.sh` 中，并通过 `source marco.sh`命令，（重新）加载函数。
 
    ```bash
-    #!/bin/bash
-    marco(){
-        echo "$(pwd)" > $HOME/marco_history.log
-        echo "save pwd $(pwd)"
-    }
-    
-    #!/bin/bash
-    polo(){
-        cd "$(cat "$HOME/marco_history.log")"
-    }
+   # 首先测试如何得到pwd的值 如下
+   root@ceph57 ~/summiao # echo "$(pwd)"
+   /root/summiao
+   
+   # 所以脚本可以是
+     7 #!/bin/bash
+     6 marco(){
+     5         echo "$(pwd)" > /root/marco.log
+     4         echo "save the $(pwd)"
+     3 }
+     2 
+     1 # invoke it
+   8   marco
+   
+   # 然后给一下权限
+   root@ceph57 ~/summiao # chmod u+x marco.sh
+   
+   # 就可以执行了 执行结果没问题
+   root@ceph57 ~/summiao # ./marco.sh
+   save the /root/summiao
+   
+   # 还可以确认一下日志文件
+   root@ceph57 ~/summiao # cat /root/marco.log
+   /root/summiao
+   
+   # 同理进行polo的编写
+     5 #!/bin/bash
+     4 polo(){
+     3         cd "$(cat "/root/marco.log")"
+     2 }
+     1 
+   6   polo
+   
+   # 然后执行polo
+   root@ceph57 ~ # source ~/summiao/polo.sh
+   root@ceph57 ~/summiao # 
    ```
 
-   或者
+   或者如下所示
 
    ```bash
     #!/bin/bash
@@ -544,27 +572,27 @@ Fasd 基于 [*frecency*](https://developer.mozilla.org/en-US/docs/Mozilla/Tech/P
    
    # 创建一个带空格的名称的html文件
    msun@ceph57 ~ $ touch spa\ ce.html
+   
    msun@ceph57 ~ $ ls
    d_for_find  dotfiles.md  grep  ls  ls.txt  spa ce.html  xargs.html
+   
+   # 建立子目录 （为了测试是否递归 —— 实际上find默认是递归的）
    msun@ceph57 ~/d_for_find $ ls
    recursive.html
    # 此时文件树为：
    msun@ceph57 ~ $ sudo tree .
    .
    ├── d_for_find
-   │   └── recursive.html
-   ├── dotfiles.md
-   ├── html.zip
-   ├── ls
-   ├── ls.txt
+   │   └── recursive.html
    ├── spa\ ce.html
-   ├── test-xargs.sh
    └── xargs.html
    
-   # 注意 find 本身就是递归查找的 如下
+   # 注意 find 本身就是递归查找的
+   # 但是直接查找找不到带空格的html文件 如下
    msun@ceph57 ~ $ find . -name '*.html' -type f
    ./d_for_find/recursive.html
    ./xargs.html
+   
    # 正确的处理方法有很多 比如
    # 这种方法就是将find操作得到的结果中的换行符用空字符替换
    # 然后对应的xargs用空字符找文件之间的分界线
@@ -591,4 +619,18 @@ Fasd 基于 [*frecency*](https://developer.mozilla.org/en-US/docs/Mozilla/Tech/P
 5. (进阶) 编写一个命令或脚本递归的查找文件夹中最近使用的文件。更通用的做法，你可以按照最近的使用时间列出文件吗？
 
    ```bash
+   # . 可以替换成任何文件夹
+   # -t 表示以时间为序
+   # -4 可以替换成任何数字 表示从上往下的显示的行数
+   root@ceph57 ~/summiao # find . -type f print0 | xargs -0 ls -lt | head -4
+   find: paths must precede expression: print0
+   Usage: find [-H] [-L] [-P] [-Olevel] [-D help|tree|search|stat|rates|opt|exec] [path...] [expression]
+   total 24
+   -rwxr--r--  1 root root   59 Dec 28 14:44 polo.sh
+   -rwxr--r--  1 root root  101 Dec 28 14:34 marco.sh
+   -rw-r--r--  1 root root    6 Dec 28 09:38 dhello.txt
    
+   # p.s.
+   # 当文件数量较多时，上面的解答会得出错误结果，解决办法是增加 -mmin 条件，先将最近修改的文件进行初步筛选再交给ls进行排序显示 
+   find . -type f -mmin -60 -print0 | xargs -0 ls -lt | head -10
+   ```
