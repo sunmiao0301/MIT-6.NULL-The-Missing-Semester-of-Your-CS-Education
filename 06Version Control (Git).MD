@@ -252,17 +252,141 @@ Git 处理这些场景的方法是使用一种叫做 “暂存区（staging area
 - [How to explain git in simple words](https://smusamashah.github.io/blog/2017/10/14/explain-git-in-simple-words)；
 - [Learn Git Branching](https://learngitbranching.js.org/) 通过基于浏览器的游戏来学习 Git ；
 
-# 课后练习
+# HOMEWORK
 
 [习题解答](https://missing-semester-cn.github.io/missing-notes-and-solutions/2020/solutions//version-control-solution)
 
 1. 如果您之前从来没有用过 Git，推荐您阅读 [Pro Git](https://git-scm.com/book/en/v2) 的前几章，或者完成像 [Learn Git Branching](https://learngitbranching.js.org/)这样的教程。重点关注 Git 命令和数据模型相关内容；
 
-2. Fork本课程网站的仓库
+2. Fork[本课程网站的仓库](https://github.com/missing-semester/missing-semester)
+
+   ```bash
+   # why fork?
+   # A fork is a copy of a repository. Forking a repository allows you to freely experiment with changes without affecting the original project.
+   ```
 
    1. 将版本历史可视化并进行探索
+
+      ```bash
+      /d/repo (master)
+      $ Cloning into 'missing-semester'...
+      /d/repo (master)
+      bash: syntax error near unexpected token `master'
+      remote: Enumerating objects: 2071, done.
+      remote: Counting objects: 100% (173/173), done.
+      remote: Compressing objects: 100% (93/93), done.
+      remote: Total 2071 (delta 88), reused 130 (delta 72), pack-reused 1898
+      Receiving objects: 100% (2071/2071), 15.63 MiB | 3.81 MiB/s, done.
+      Resolving deltas: 100% (1214/1214), done.
+      
+      /d/repo (master)
+      $ cd missing-semester
+      
+      /d/repo/missing-semester (master)
+      $ git log --all --graph --decorate
+      *   commit c2f9535271f03bc4c8865e32abf0dbf9bb131a5c (HEAD -> master, origin/master, origin/HEAD)
+      |\  Merge: 8cc6609 e4383e7
+      | | Author: Jon Gjengset <jon@thesquareplanet.com>
+      | | Date:   Wed Dec 8 23:10:46 2021 -0500
+      | |
+      | |     Merge pull request #172 from chapmanjacobd/patch-1
+      | |
+      | |     Add Alt+.
+      | |
+      | * commit e4383e7971589f93ac36ff9e96d3904f32319393
+      | | Author: Jacob Chapman <7908073+chapmanjacobd@users.noreply.github.com>
+      | | Date:   Thu Nov 25 17:04:21 2021 -0600
+      | |
+      | |     Add Alt+.
+      | |
+      * | commit 8cc6609126f34fdd465001bdbbf095ae2d9721eb
+      | | Author: Anish Athalye <me@anishathalye.com>
+      | | Date:   Sat Dec 4 05:19:49 2021 -0500
+      | |
+      | |     Add ignored URL
+      | |
+      * |   commit ad4d14f30cff1926a0693dd94ce9b99a80d87488
+      |\ \  Merge: f62424f ece6aca
+      | |/  Author: Jon Gjengset <jon@thesquareplanet.com>
+      |/|   Date:   Fri Dec 3 15:06:51 2021 -0500
+      | |
+      | |       Merge pull request #173 from UranusITS/master
+      | |
+      | |       fix typo
+      | |
+      | * commit ece6aca1a4f289ae01bb291a19b52a44c7313187
+      |/  Author: Uranus <whlisikuang@outlook.com>
+      ```
+
    2. 是谁最后修改了 `README.md`文件？（提示：使用 `git log` 命令并添加合适的参数）
+
+      ```bash
+      # 我尝试的是 
+      /d/repo/missing-semester (master)
+      $ git log | grep README
+          Add build status to README
+          Remove link to Hacker Tools from README
+          Update README
+      
+      # 但是应该是
+      /d/repo/missing-semester (master)
+      $ git log README.md
+      commit 8010724516adc968765e8efd14991f262f0d0423
+      Author: Anish Athalye <me@anishathalye.com>
+      Date:   Tue Jul 27 08:29:08 2021 -0400
+      
+          Separate build and links status
+      ```
+
    3. 最后一次修改`_config.yml` 文件中 `collections:` 行时的提交信息是什么？（提示：使用 `git blame` 和 `git show`）
+
+      ```bash
+      # git-blame
+      # git-blame - Show what revision and author last modified each line of a file
+      
+      # 通过 git blame 得到哈希值
+      /d/repo/missing-semester (master)
+      $ git blame _config.yml | grep collections
+      a88b4eac (Anish Athalye 2020-01-17 15:26:30 -0500 18) collections:
+      
+      # 通过git show 得到哈希值对应的commit的信息
+      /d/repo/missing-semester (master)
+      $ git show a88b4eac
+      commit a88b4eac326483e29bdac5ee0a39b180948ae7fc
+      Author: Anish Athalye <me@anishathalye.com>
+      Date:   Fri Jan 17 15:26:30 2020 -0500
+      
+          Redo lectures as a collection
+      
+      diff --git a/2020/index.html b/2020/index.html
+      deleted file mode 100644
+      index 153ddc8..0000000
+      --- a/2020/index.html
+      +++ /dev/null
+      @@ -1,5 +0,0 @@
+      ----
+      -layout: redirect
+      -redirect: /
+      -title: Missing Semester 2020
+      ----
+      diff --git a/2019/automation.md b/_2019/automation.md
+      similarity index 100%
+      rename from 2019/automation.md
+      rename to _2019/automation.md
+      diff --git a/2019/backups.md b/_2019/backups.md
+      similarity index 100%
+      rename from 2019/backups.md
+      rename to _2019/backups.md
+      diff --git a/2019/command-line.md b/_2019/command-line.md
+      similarity index 100%
+      rename from 2019/command-line.md
+      rename to _2019/command-line.md
+      diff --git a/2019/course-overview.md b/_2019/course-overview.md
+      similarity index 100%
+      rename from 2019/course-overview.md
+      
+      
+      ```
 
 3. 使用 Git 时的一个常见错误是提交本不应该由 Git 管理的大文件，或是将含有敏感信息的文件提交给 Git 。尝试向仓库中添加一个文件并添加提交信息，然后将其从历史中删除 ( [这篇文章也许会有帮助](https://help.github.com/articles/removing-sensitive-data-from-a-repository/))；
 
@@ -293,7 +417,7 @@ Git 处理这些场景的方法是使用一种叫做 “暂存区（staging area
    hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
    $ echo "pw is 123" > pw.txt
    
-   # done
+   # new a file, done
    hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
    $ ls
    1216Ceph_stack.png  1224SwitchOmega.png  1227git.png     pw.txt
@@ -306,7 +430,7 @@ Git 处理这些场景的方法是使用一种叫做 “暂存区（staging area
    warning: LF will be replaced by CRLF in pw.txt.
    The file will have its original line endings in your working directory
    
-   # done
+   # add, done
    hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
    $ git status
    On branch main
@@ -323,7 +447,7 @@ Git 处理这些场景的方法是使用一种叫做 “暂存区（staging area
     1 file changed, 1 insertion(+)
     create mode 100644 pw.txt
    
-   # done
+   # commit, done
    hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
    $ git status
    On branch main
@@ -375,16 +499,159 @@ Git 处理这些场景的方法是使用一种叫做 “暂存区（staging area
 
 4. 从 GitHub 上克隆某个仓库，修改一些文件。当您使用 `git stash` 会发生什么？当您执行 `git log --all --oneline` 时会显示什么？通过 `git stash pop` 命令来撤销 `git stash` 操作，什么时候会用到这一技巧？
 
+   ```bash
+   # git-stash
+   # git-stash - Stash the changes in a dirty working directory away
+   
+   # 「使用场景」 当你接到一个修复紧急 bug 的任务时候，一般都是先创建一个新的 bug 分支来修复它，然后合并，最后删除。但是，如果当前你正在开发功能中，短时间还无法完成，无法直接提交到仓库，这时候可以先把当前工作区的内容 git stash 一下，然后去修复 bug，修复后，再 git stash pop，恢复之前的工作内容。
+   ```
+
 5. 与其他的命令行工具一样，Git 也提供了一个名为 `~/.gitconfig` 配置文件 (或 dotfile)。请在 `~/.gitconfig` 中创建一个别名，使您在运行 `git graph` 时，您可以得到 `git log --all --graph --decorate --oneline` 的输出结果；
+
+   ```bash
+   /d/repo/missing-semester (master)
+   $ cd /d
+   
+   /d (master)
+   $ cd Git
+   
+   /d/Git (master)
+   $ ls
+   LICENSE.txt        bin/  dev/  git-bash.exe*  mingw64/  unins000.dat   unins000.msg
+   ReleaseNotes.html  cmd/  etc/  git-cmd.exe*   tmp/      unins000.exe*  usr/
+   cd
+   /d/Git (master)
+   $ cd etc
+   
+   /d/Git/etc (master)
+   $ ls
+   DIR_COLORS        fstab          inputrc              nanorc                pkcs11/     protocols  vimrc
+   bash.bash_logout  gitattributes  install-options.txt  networks              pki/        services
+   bash.bashrc       gitconfig      msystem              nsswitch.conf         profile     ssh/
+   docx2txt.config   hosts          mtab@                package-versions.txt  profile.d/  tigrc
+   
+   /d/Git/etc (master)
+   $ ls -a
+   ./                bash.bashrc      gitconfig            msystem   nsswitch.conf         profile     ssh/
+   ../               docx2txt.config  hosts                mtab@     package-versions.txt  profile.d/  tigrc
+   DIR_COLORS        fstab            inputrc              nanorc    pkcs11/               protocols   vimrc
+   bash.bash_logout  gitattributes    install-options.txt  networks  pki/                  services
+   
+   /d/Git/etc (master)
+   $ cat gitconfig
+   [diff "astextplain"]
+           textconv = astextplain
+   [filter "lfs"]
+           clean = git-lfs clean -- %f
+           smudge = git-lfs smudge -- %f
+           process = git-lfs filter-process
+           required = true
+   [http]
+           sslBackend = openssl
+           sslCAInfo = D:/Git/mingw64/ssl/certs/ca-bundle.crt
+   [core]
+           autocrlf = true
+           fscache = true
+           symlinks = false
+   [pull]
+           rebase = false
+   [credential]
+           helper = manager-core
+   [credential "https://dev.azure.com"]
+           useHttpPath = true
+   [init]
+           defaultBranch = master
+   
+   # 直接在最后一行修改加入之后运行git graph 如下
+   /d/repo/missing-semester
+   $ git graph
+   fatal: bad config line 25 in file D:/Git/etc/gitconfig
+   
+   # 好像在Windows上 gitbash的alias文件在 D:\Git\etc\profile.d （D:是gitbash的安装目录）
+   # 并且 git graph 好像不行
+   # 得是 git-graph
+   # 如下
+   /d/repo/missing-semester
+   $ git-graph
+   *   c2f9535 (HEAD -> master, origin/master, origin/HEAD) Merge pull request #172 from chapmanjacobd/patch-1
+   |\
+   | * e4383e7 Add Alt+.
+   * | 8cc6609 Add ignored URL
+   * |   ad4d14f Merge pull request #173 from UranusITS/master
+   |\ \
+   | |/
+   |/|
+   | * ece6aca fix typo
+   |/
+   *   f62424f Merge branch 'ds2606/master'
+   |\
+   | * 63a2509 fixed checked nav-bar block styling on media query
+   |/
+   * 4c80259 Add a really nice strace zine resource (#168)
+   *   676944b Merge branch 'jtomori/fix-kill-cmd'
+   |\
+   | * 09991f3 Fix kill parameter to list signals.
+   |/
+   * 0c9c024 Fix broken links
+   * 731a005 Fix broken link
+   * 839adce Add a github tutorial on how to contribute (#162)
+   *   2d1a558 Merge branch 'kumatheworld/fix-numbering'
+   |\
+   | * 157dd68 Fix list numbering
+   |/
+   *   602282f Merge branch 'LemurP/master'
+   |\
+   | * 154aa87 Add link to Git alias section in exercise
+   ```
+
+   ![1228gitbashalias.png](https://raw.githubusercontent.com/sunmiao0301/Public-Pic-Bed/main/1228gitbashalias.png)
+
+   ```bash
+   # 根据答案以及测试 如下也可
+    [alias]
+        graph = log --all --graph --decorate --oneline
+     
+   # 具体如下
+   /d/repo/missing-semester
+   $ cat "C:\Users\hfut_\.gitconfig"
+   [filter "lfs"]
+           clean = git-lfs clean -- %f
+           smudge = git-lfs smudge -- %f
+           process = git-lfs filter-process
+           required = true
+   [user]
+           name = sunmiao0301
+           email = hfut_sm@163.com
+   [http]
+           proxy = 127.0.0.1:33210
+   [pgp]
+           program = gpg2
+   [gpg]
+           program = gpg2
+   [alias]
+           git-graph='git-graph"="git log --all --graph --decorate --oneline'
+   ```
 
 6. 您可以通过执行 `git config --global core.excludesfile ~/.gitignore_global` 在 `~/.gitignore_global` 中创建全局忽略规则。配置您的全局 gitignore 文件来自动忽略系统或编辑器的临时文件，例如 `.DS_Store`；
 
+   ```bash
+   git config --global core.excludesfile ~/.gitignore .DS_Store
+   ```
+
 7. 克隆 [本课程网站的仓库](https://github.com/missing-semester/missing-semester)，找找有没有错别字或其他可以改进的地方，在 GitHub 上发起拉取请求（Pull Request）；
 
+   *详细fork及pr过程参见[这里](https://docs.github.com/en/get-started/quickstart/fork-a-repo)*
+
    ```bash
-   首先 fork 本网站仓库，然后克隆 fork 后的仓库
-   git clone https://github.com/hanxiaomax/missing-semester.git
-   在本地进行修改后，提交到 fork 后的仓库，然后发起 PR 即可
+   # Propose changes to someone else's project
+   # For example, you can use forks to propose changes related to fixing a bug. Rather than logging an issue for a bug you've found, you can:
+   ## Fork the repository.
+   ## clone the repo that you forked just now. (use https)
+   ## Make the fix.
+   ## push your work to your GitHub.
+   ## Submit a pull request (PR) to the project owner.\
+   
+   
    ```
 
    ## Supplement from video
@@ -686,6 +953,3 @@ Git 处理这些场景的方法是使用一种叫做 “暂存区（staging area
    ```
 
    
-
-
-
