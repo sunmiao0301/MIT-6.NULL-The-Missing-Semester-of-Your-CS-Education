@@ -1,1113 +1,1103 @@
-### 版本控制(Git)
+### 命令行环境
 
 *—— 见Supplement from video*
 
-版本控制系统 (VCSs) 是一类用于追踪源代码（或其他文件、文件夹）改动的工具。顾名思义，这些工具可以帮助我们管理代码的修改历史；不仅如此，它还可以让协作编码变得更方便。VCS通过一系列的快照将某个文件夹及其内容保存了起来，每个快照都包含了文件或文件夹的完整状态。同时它还维护了快照创建者的信息以及每个快照的相关信息等等。
+当您使用 shell 进行工作时，可以使用一些方法改善您的工作流，本节课我们就来讨论这些方法。我们已经使用 shell 一段时间了，但是到目前为止我们的关注点主要集中在使用不同的命令上面。现在，我们将会学习：
 
-为什么说版本控制系统非常有用？即使您只是一个人进行编程工作，它也可以帮您创建项目的快照，记录每个改动的目的、基于多分支并行开发等等。和别人协作开发时，它更是一个无价之宝，您可以看到别人对代码进行的修改，同时解决由于并行开发引起的冲突。
+- 如何同时执行多个不同的进程并追踪它们的状态
+- 如何停止或暂停某个进程以及如何使进程在后台运行。
 
-现代的版本控制系统可以帮助您轻松地（甚至自动地）回答以下问题：
+- 我们还将学习一些能够改善您的 shell 及其他工具的工作流的方法，这主要是通过：
+  - 定义别名或基于配置文件对其进行配置来实现的。这些方法都可以帮您节省大量的时间。
+  - 例如，仅需要执行一些简单的命令，我们就可以在所有的主机上使用相同的配置。
+  - 学习如何使用 SSH 操作远端机器。
 
-- 当前模块是谁编写的？
-- 这个文件的这一行是什么时候被编辑的？是谁作出的修改？修改原因是什么呢？
-- 最近的1000个版本中，何时/为什么导致了单元测试失败？
+### 任务控制
 
-尽管版本控制系统有很多， 其事实上的标准则是 **Git** 。而这篇 [XKCD 漫画](https://xkcd.com/1597/) 则反映出了人们对 Git 的评价：
+某些情况下我们需要中断正在执行的任务，比如当一个命令需要执行很长时间才能完成时（假设我们在使用 `find` 搜索一个非常大的目录结构）。大多数情况下，我们可以使用 `Ctrl-C` 来停止命令的执行。但是它的工作原理是什么呢？为什么有的时候会无法结束进程？
 
-![1227git.png](https://raw.githubusercontent.com/sunmiao0301/Public-Pic-Bed/main/1227git.png)
+### 结束进程
 
-因为 Git 接口的抽象泄漏（leaky abstraction）问题，通过自顶向下的方式（从命令行接口开始）学习 Git 可能会让人感到非常困惑。很多时候您只能死记硬背一些命令行，然后像使用魔法一样使用它们，一旦出现问题，就只能像上面那幅漫画里说的那样去处理了。—— *一旦犯错，把你的工作保存在其他地方，然后删除项目，最后下载一个新的Copy*
+您的 shell 会使用 UNIX 提供的信号机制执行进程间通信。当一个进程接收到信号时，它会停止执行、处理该信号并基于信号传递的信息来改变其执行。就这一点而言，信号是一种*软件中断*。
 
-尽管 Git 的接口有些丑陋，但是它的底层设计和思想却是非常优雅的。丑陋的接口只能靠死记硬背，而优雅的底层设计则非常容易被人理解。因此，我们将通过一种自底向上的方式向您介绍 Git。我们会从数据模型开始，最后再学习它的接口。一旦您搞懂了 Git 的数据模型，再学习其接口并理解这些接口是如何操作数据模型的就非常容易了。
+在上面的例子中，当我们输入 `Ctrl-C` 时，shell 会发送一个`SIGINT` 信号到进程。
 
-### Git的数据模型
+下面这个 Python 程序向您展示了捕获信号`SIGINT` 并忽略它的基本操作，它并不会让程序停止。为了停止这个程序，我们需要使用`SIGQUIT` 信号，通过输入`Ctrl-\`可以发送该信号。
 
-进行版本控制的方法很多。Git 拥有一个经过精心设计的模型，这使其能够支持版本控制所需的所有特性，例如维护历史记录、支持分支和促进协作。
+```python
+#!/usr/bin/env python
+import signal, time
 
-#### 快照
+def handler(signum, time):
+    print("\nI got a SIGINT, but I am not stopping")
 
-Git 将顶级目录中的文件和文件夹作为集合，并通过一系列快照来管理其历史记录。在Git的术语里，文件被称作Blob对象（数据对象），也就是一组数据。目录则被称之为“树”，它将名字与 Blob 对象或树对象进行映射（使得目录中可以包含其他目录）。快照则是被追踪的最顶层的树。例如，一个树看起来可能是这样的：
-
-```
-<root> (tree)
-|
-+- foo (tree)
-|  |
-|  + bar.txt (blob, contents = "hello world")
-|
-+- baz.txt (blob, contents = "git is wonderful")
-```
-
-这个顶层的树包含了两个元素，一个名为 “foo” 的树（它本身包含了一个blob对象 “bar.txt”），以及一个 blob 对象 “baz.txt”。
-
-#### 关联快照
-
-版本控制系统和快照有什么关系呢？线性历史记录是一种最简单的模型，它包含了一组按照时间顺序线性排列的快照。不过处于种种原因，Git 并没有采用这样的模型。
-
-在 Git 中，历史记录是一个由快照组成的有向无环图。有向无环图，听上去似乎是什么高大上的数学名词。不过不要怕，您只需要知道这代表 Git 中的每个快照都有一系列的“父辈”，也就是其之前的一系列快照。注意，快照具有多个“父辈”而非一个，因为某个快照可能由多个父辈而来。例如，经过合并后的两条分支。
-
-在 Git 中，这些快照被称为“提交”。通过可视化的方式来表示这些历史提交记录时，看起来差不多是这样的：
-
-```
-o <-- o <-- o <-- o
-            ^  
-             \
-              --- o <-- o
+signal.signal(signal.SIGINT, handler)
+i = 0
+while True:
+    time.sleep(.1)
+    print("\r{}".format(i), end="")
+    i += 1
 ```
 
-上面是一个 ASCII 码构成的简图，其中的 `o` 表示一次提交（快照）。
+如果我们向这个程序发送两次 `SIGINT` ，然后再发送一次 `SIGQUIT`，程序会有什么反应？
 
-箭头指向了当前提交的父辈（这是一种“在。。。之前”，而不是“在。。。之后”的关系）。在第三次提交之后，历史记录分岔成了两条独立的分支。这可能因为此时需要同时开发两个不同的特性，它们之间是相互独立的。开发完成后，这些分支可能会被合并并创建一个新的提交，这个新的提交会同时包含这些特性。新的提交会创建一个新的历史记录，看上去像这样（最新的合并提交用粗体标记，但是markdown的代码块好像不支持）：
+注意 `^` 是我们在终端输入`Ctrl` 时的表示形式：
 
-```
-o <-- o <-- o <-- o <---- o
-            ^            /
-             \          v
-              --- o <-- o
-```
-
-Git 中的提交是不可改变的。但这并不代表错误不能被修改，只不过这种“修改”实际上是创建了一个全新的提交记录。而引用（参见下文）则被更新为指向这些新的提交。
-
-#### 数据模型及其伪代码表示
-
-以伪代码的形式来学习 Git 的数据模型，可能更加清晰：
-
-```c
-// 文件就是一组数据
-type blob = array<byte>
-
-// 一个包含文件和目录的目录
-type tree = map<string, tree | blob>
-
-// 每个提交都包含一个父辈，元数据和顶层树
-type commit = struct {
-    parent: array<commit>
-    author: string
-    message: string
-    snapshot: tree
-}
+```bash
+$ python sigint.py
+24^C
+I got a SIGINT, but I am not stopping
+26^C
+I got a SIGINT, but I am not stopping
+30^\[1]    39913 quit       python sigint.pyƒ
 ```
 
-这是一种简洁的历史模型。
+尽管 `SIGINT` 和 `SIGQUIT` 都常常用来发出和终止程序相关的请求。`SIGTERM` 则是一个更加通用的、也更加优雅地退出信号。为了发出这个信号我们需要使用 [`kill`](https://www.man7.org/linux/man-pages/man1/kill.1.html) 命令, 它的语法是： `kill -TERM <PID>`。
 
-#### 对象和内存寻址
+**P.S. 我们编写一个loop**
 
-Git 中的对象可以是 blob、树或提交：
-
-```
-type object = blob | tree | commit
-```
-
-Git 在储存数据时，所有的对象都会基于它们的 [SHA-1 哈希](https://en.wikipedia.org/wiki/SHA-1) 进行寻址。
-
-```c
-objects = map<string, object>
-
-def store(object):
-    id = sha1(object)
-    objects[id] = object
-
-def load(id):
-    return objects[id]
+```shell
+  1  #!/bin/bash
+  2  while :
+  3  do
+  4         date
+  5         sleep 1
+  6  done
 ```
 
-Blobs、树和提交都一样，它们都是对象。当它们引用其他对象时，它们并没有真正的在硬盘上保存这些对象，而是仅仅保存了它们的哈希值作为引用。
+```bash
+# 执行 然后
+# ctrl c 可以退出 
+# ctrl \ 无法退出
+msun@ceph57 ~ $ ./loop
+Wed Dec 22 10:08:00 CST 2021
+Wed Dec 22 10:08:01 CST 2021
+Wed Dec 22 10:08:02 CST 2021
+^\./loop: line 6: 19893 Quit                    (core dumped) sleep 1
+Wed Dec 22 10:08:02 CST 2021
+Wed Dec 22 10:08:03 CST 2021
+^C
+msun@ceph57 ~ $ 
+# zhp给出的解释是：
+# ctrl+\ 这个信号是发送给了 sleep 1 这个"程序"，使得当前运行的 sleep 程序退出
+# 然后继续“脚本”循环
+# ctrl+c 是发送给“脚本”，使得“脚本”退出
 
-例如，[上面](https://missing-semester-cn.github.io/2020/version-control/#snapshots)例子中的树（可以通过 `git cat-file -p 698281bc680d1995c5f4caaf3359721a5a58d48d` 来进行可视化），看上去是这样的：
-
-```
-100644 blob 4448adbf7ecd394f42ae135bbeed9676e894af85    baz.txt
-040000 tree c68d233a33c5c06e0340e4c224f0afca87c8ce87    foo
-```
-
-树本身会包含一些指向其他内容的指针，例如 `baz.txt` (blob) 和 `foo` (树)。如果我们用 `git cat-file -p 4448adbf7ecd394f42ae135bbeed9676e894af85`，即通过哈希值查看 baz.txt 的内容，会得到以下信息：
-
-```
-git is wonderful
-```
-
-#### 引用
-
-现在，所有的快照都可以通过它们的 SHA-1 哈希值来标记了。但这也太不方便了，谁也记不住一串 40 位的十六进制字符。
-
-针对这一问题，Git 的解决方法是给这些哈希值赋予人类可读的名字，也就是引用（references）。引用是指向提交的指针。与对象不同的是，它是可变的（引用可以被更新，指向新的提交）。例如，`master` 引用通常会指向主分支的最新一次提交。
-
-```
-references = map<string, string>
-
-def update_reference(name, id):
-    references[name] = id
-
-def read_reference(name):
-    return references[name]
-
-def load_reference(name_or_id):
-    if name_or_id in references:
-        return load(references[name_or_id])
-    else:
-        return load(name_or_id)
+# 如果是 直接sleep 100 无论哪种都可以直接退出
+msun@ceph57 ~ $ sleep 100
+^C
+msun@ceph57 ~ $ sleep 100
+^\Quit (core dumped)
 ```
 
-这样，Git 就可以使用诸如 “master” 这样人类可读的名称来表示历史记录中某个特定的提交，而不需要在使用一长串十六进制字符了。
+### 暂停和后台执行进程
 
-有一个细节需要我们注意， 通常情况下，我们会想要知道“我们当前所在位置”，并将其标记下来。这样当我们创建新的快照的时候，我们就可以知道它的相对位置（如何设置它的“父辈”）。在 Git 中，我们当前的位置有一个特殊的索引，它就是 “HEAD”。
+信号可以让进程做其他的事情，而不仅仅是终止它们。例如，`SIGSTOP` 会让进程暂停。在终端中，键入 `Ctrl-Z` 会让 shell 发送 `SIGTSTP` 信号。
 
-#### 仓库
+我们可以使用 [`fg`](https://www.man7.org/linux/man-pages/man1/fg.1p.html) 或 [`bg`](http://man7.org/linux/man-pages/man1/bg.1p.html) 命令恢复暂停的工作。它们分别表示在前台继续或在后台继续。
 
-最后，我们可以粗略地给出 Git 仓库的定义了：`对象` 和 `引用`。
+```bash
+# 执行sleep 100 并用Ctrl + z 暂停 
+# 用fg在前台恢复
+msun@ceph57 ~ $ sleep 100
+^Z
+[1]+  Stopped                 sleep 100
+msun@ceph57 ~ $ fg
+sleep 100
+^C
+msun@ceph57 ~ $ 
 
-在硬盘上，Git 仅存储对象和引用：因为其数据模型仅包含这些东西。所有的 `git` 命令都对应着对提交树的操作，例如增加对象，增加或删除引用。
+# 执行sleep 100 并用Ctrl + z 暂停 
+# 用bg在后台恢复
+msun@ceph57 ~ $ sleep 100
+^Z
+[1]+  Stopped                 sleep 100
+msun@ceph57 ~ $ bg
+[1]+ sleep 100 &
+# 找到后台的程序 Ctrl + c 终止
+msun@ceph57 ~ $ jobs
+[1]+  Running                 sleep 100 &
+msun@ceph57 ~ $ %1
+sleep 100
+^C
+```
 
-当您输入某个指令时，请思考一下这条命令是如何对底层的图数据结构进行操作的。另一方面，如果您希望修改提交树，例如“丢弃未提交的修改和将 ‘master’ 引用指向提交 `5d83f9e` 时，有什么命令可以完成该操作（针对这个具体问题，您可以使用 `git checkout master; git reset --hard 5d83f9e`）
+[`jobs`](http://man7.org/linux/man-pages/man1/jobs.1p.html) 命令会列出当前终端会话中尚未完成的全部任务。您可以使用 pid 引用这些任务（也可以用 [`pgrep`](https://www.man7.org/linux/man-pages/man1/pgrep.1.html) 找出 pid）。更加符合直觉的操作是您可以使用百分号 + 任务编号（`jobs` 会打印任务编号）来选取该任务。如果要选择最近的一个任务，可以使用 `$!` 这一特殊参数。
 
-### 暂存区
+```bash
+msun@ceph57 ~ $ sleep 100
+^Z
+[1]+  Stopped                 sleep 100
+msun@ceph57 ~ $ jobs
+[1]+  Stopped                 sleep 100
+msun@ceph57 ~ $ %1
+sleep 100
+^C
+```
 
-Git 中还包括一个和数据模型完全不相关的概念，但它确是创建提交的接口的一部分。
+还有一件事情需要掌握，那就是命令中的 `&` 后缀可以让命令在直接在后台运行，这使得您可以直接在 shell 中继续做其他操作，不过它此时还是会使用 shell 的标准输出，这一点有时会比较恼人（这种情况可以使用 shell 重定向处理）。
 
-就上面介绍的快照系统来说，您也许会期望它的实现里包括一个 “创建快照” 的命令，该命令能够基于当前工作目录的当前状态创建一个全新的快照。有些版本控制系统确实是这样工作的，但 Git 不是。**我们希望简洁的快照，而且每次从当前状态创建快照可能效果并不理想。**例如，考虑如下场景，您开发了两个独立的特性，然后您希望创建两个独立的提交，其中第一个提交仅包含第一个特性，而第二个提交仅包含第二个特性。或者，假设您在调试代码时添加了很多打印语句，然后您仅仅希望提交和修复 bug 相关的代码而丢弃所有的打印语句。
+```bash
+## 如果不写入文件 就会一直使用shell的标准输出 显示在shell上
+msun@ceph57 ~ $ ./loop &
+[1] 6413
+msun@ceph57 ~ $ Wed Dec 22 10:38:38 CST 2021
+Wed Dec 22 10:38:39 CST 2021
+Wed Dec 22 10:38:40 CST 2021
+Wed Dec 22 10:38:41 CST 2021
+Wed Dec 22 10:38:42 CST 2021
+[1]+  Running                 ./loop &
+msun@ceph57 ~ $ Wed Dec 22 10:38:49 CST 2021
+Wed Dec 22 10:38:50 CST 2021
+Wed Dec 22 10:38:51 CST 2021
+bg
+-bash: bg: job 1 already in background
+msun@ceph57 ~ $ Wed Dec 22 10:38:52 CST 2021
+Wed Dec 22 10:38:53 CST 2021
+Wed Dec 22 10:38:54 CST 2021
+Wed Dec 22 10:38:55 CST 2021
+Wed Dec 22 10:38:56 CST 2021
+^C
+msun@ceph57 ~ $ 
 
-Git 处理这些场景的方法是使用一种叫做 “暂存区（staging area）”的机制，**它允许您指定下次快照中要包括那些改动。**
+## 使用重定向 安静
+msun@ceph57 ~ $ ./loop > loop.txt &
+[1] 3354
+msun@ceph57 ~ $ jobs
+[1]+  Running                 ./loop > loop.txt &
+msun@ceph57 ~ $ fg
+./loop > loop.txt
+^C
+msun@ceph57 ~ $ cat loop.txt
+Wed Dec 22 10:36:47 CST 2021
+Wed Dec 22 10:36:48 CST 2021
+Wed Dec 22 10:36:49 CST 2021
+Wed Dec 22 10:36:50 CST 2021
+```
 
-### Git的命令行接口
+让已经在运行的进程转到后台运行，您可以键入`Ctrl-Z` ，然后紧接着再输入`bg`。
 
-为了避免重复信息，我们将不会详细解释以下命令行。强烈推荐您阅读 [Pro Git 中文版](https://git-scm.com/book/zh/v2)或可以观看本讲座的视频来学习。
+**注意，后台的进程仍然是您的终端进程的子进程，一旦您关闭终端（会发送另外一个信号`SIGHUP`），这些后台的进程也会终止。**
 
-#### 基础
+为了防止这种情况发生，您可以使用 [`nohup`](https://www.man7.org/linux/man-pages/man1/nohup.1.html) (一个用来忽略 `SIGHUP` 的封装) 来运行程序。针对已经运行的程序，可以使用`disown` 。除此之外，您可以使用终端多路复用器来实现，下一章节我们会进行详细地探讨。
 
-- `git help <command>`: 获取 git 命令的帮助信息
-- `git init`: 创建一个新的 git 仓库，其数据会存放在一个名为 `.git` 的目录下
-- `git status`: 显示当前的仓库状态
-- `git add <filename>`: 添加文件到暂存区
-- ```git commit```: 创建一个新的提交
-  - 如何编写 [良好的提交信息](https://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html)!
-  - 为何要 [编写良好的提交信息](https://chris.beams.io/posts/git-commit/)
-- `git log`: 显示历史日志
-- `git log --all --graph --decorate`: 可视化历史记录（有向无环图）
-- `git diff <filename>`: 显示与暂存区文件的差异
-- `git diff <revision> <filename>`: 显示某个文件两个版本之间的差异
-- `git checkout <revision>`: 更新 HEAD 和目前的分支
+下面这个简单的会话中展示来了些概念的应用。
 
-#### 分支和合并
+```bash
+$ sleep 1000
+^Z
+[1]  + 18653 suspended  sleep 1000
 
-- `git branch`: 显示分支
+$ nohup sleep 2000 &
+[2] 18745
+appending output to nohup.out
 
-- `git branch <name>`: 创建分支
+$ jobs
+[1]  + suspended  sleep 1000
+[2]  - running    nohup sleep 2000
 
-- ```plaintext
-  git checkout -b <name>
-  ```
+$ bg %1
+[1]  - 18653 continued  sleep 1000
 
-  : 创建分支并切换到该分支
+$ jobs
+[1]  - running    sleep 1000
+[2]  + running    nohup sleep 2000
 
-  - 相当于 `git branch <name>; git checkout <name>`
+$ kill -STOP %1
+[1]  + 18653 suspended (signal)  sleep 1000
 
-- `git merge <revision>`: 合并到当前分支
+$ jobs
+[1]  + suspended (signal)  sleep 1000
+[2]  - running    nohup sleep 2000
 
-- `git mergetool`: 使用工具来处理合并冲突
+$ kill -SIGHUP %1
+[1]  + 18653 hangup     sleep 1000
 
-- `git rebase`: 将一系列补丁变基（rebase）为新的基线
+$ jobs
+[2]  + running    nohup sleep 2000
 
-#### 远端操作
+$ kill -SIGHUP %2
 
-- `git remote`: 列出远端
-- `git remote add <name> <url>`: 添加一个远端
-- `git push <remote> <local branch>:<remote branch>`: 将对象传送至远端并更新远端引用
-- `git branch --set-upstream-to=<remote>/<remote branch>`: 创建本地和远端分支的关联关系
-- `git fetch`: 从远端获取对象/索引
-- `git pull`: 相当于 `git fetch; git merge`
-- `git clone`: 从远端下载仓库
+$ jobs
+[2]  + running    nohup sleep 2000
 
-#### 撤销
+$ kill %2
+[2]  + 18745 terminated  nohup sleep 2000
 
-- `git commit --amend`: 编辑提交的内容或信息
-- `git reset HEAD <file>`: 恢复暂存的文件
-- `git checkout -- <file>`: 丢弃修改
+$ jobs
+```
 
-### Git 高级操作
+`SIGKILL` 是一个特殊的信号，它不能被进程捕获并且它会马上结束该进程。不过这样做会有一些副作用，例如留下孤儿进程。
 
-- `git config`: Git 是一个 [高度可定制的](https://git-scm.com/docs/git-config) 工具
-- `git clone --depth=1`: 浅克隆（shallow clone），不包括完整的版本历史信息
-- `git add -p`: 交互式暂存
-- `git rebase -i`: 交互式变基
-- `git blame`: 查看最后修改某行的人
-- `git stash`: 暂时移除工作目录下的修改内容
-- `git bisect`: 通过二分查找搜索历史记录
-- `.gitignore`: [指定](https://git-scm.com/docs/gitignore) 故意不追踪的文件
+您可以在 [这里](https://en.wikipedia.org/wiki/Signal_(IPC)) 或输入 [`man signal`](https://www.man7.org/linux/man-pages/man7/signal.7.html) 或使用 `kill -t` 来获取更多关于信号的信息。
+
+### 终端多路复用
+
+当您在使用命令行时，您通常会希望同时执行多个任务。举例来说，您可以想要同时运行您的编辑器，并在终端的另外一侧执行程序。尽管再打开一个新的终端窗口也能达到目的，使用终端多路复用器则是一种更好的办法。
+
+像 [`tmux`](https://www.man7.org/linux/man-pages/man1/tmux.1.html) 这类的终端多路复用器可以允许我们基于面板和标签分割出多个终端窗口，这样您便可以同时与多个 shell 会话进行交互。
+
+不仅如此，终端多路复用使我们可以分离当前终端会话并在将来重新连接。
+
+这让您操作远端设备时的工作流大大改善，避免了 `nohup` 和其他类似技巧的使用。
+
+现在最流行的终端多路器是 [`tmux`](https://www.man7.org/linux/man-pages/man1/tmux.1.html)。`tmux` 是一个高度可定制的工具，您可以使用相关快捷键创建多个标签页并在它们间导航。
+
+`tmux` 的快捷键需要我们掌握，它们都是类似 `<C-b> x` 这样的组合，即需要先按下`Ctrl+b`，松开后再按下 `x`。`tmux` 中对象的继承结构如下：
+
+- 会话  每个会话都是一个独立的工作区，其中包含一个或多个窗口
+  - `tmux` 开始一个新的会话
+  - `tmux new -s NAME` 以指定名称开始一个新的会话
+  - `tmux ls` 列出当前所有会话
+  - 在 `tmux` 中输入 `<C-b> d` ，将当前会话分离
+  - `tmux a` 重新连接最后一个会话。您也可以通过 `-t` 来指定具体的会话
+- 窗口  相当于编辑器或是浏览器中的标签页，从视觉上将一个会话分割为多个部分
+  - `<C-b> c` 创建一个新的窗口，使用 `<C-d>`关闭
+  - `<C-b> N` 跳转到第 *N* 个窗口，注意每个窗口都是有编号的
+  - `<C-b> p` 切换到前一个窗口
+  - `<C-b> n` 切换到下一个窗口
+  - `<C-b> ,` 重命名当前窗口
+  - `<C-b> w` 列出当前所有窗口
+- 面板  像 vim 中的分屏一样，面板使我们可以在一个屏幕里显示多个 shell
+  - `<C-b> "` 水平分割
+  - `<C-b> %` 垂直分割
+  - `<C-b> <方向>` 切换到指定方向的面板，<方向> 指的是键盘上的方向键
+  - `<C-b> z` 切换当前面板的缩放
+  - `<C-b> [` 开始往回卷动屏幕。您可以按下空格键来开始选择，回车键复制选中的部分
+  - `<C-b> <空格>` 在不同的面板排布间切换
+
+扩展阅读： [这里](https://www.hamvocke.com/blog/a-quick-and-easy-guide-to-tmux/) 是一份 `tmux` 快速入门教程， [而这一篇](http://linuxcommand.org/lc3_adv_termmux.php) 文章则更加详细，它包含了 `screen` 命令。您也许想要掌握 [`screen`](https://www.man7.org/linux/man-pages/man1/screen.1.html) 命令，因为在大多数 UNIX 系统中都默认安装有该程序。
+
+### 别名
+
+输入一长串包含许多选项的命令会非常麻烦。因此，大多数 shell 都支持设置别名。shell 的别名相当于一个长命令的缩写，shell 会自动将其替换成原本的命令。例如，bash 中的别名语法如下：
+
+```
+alias alias_name="command_to_alias arg1 arg2"
+```
+
+**注意， `=`两边是没有空格的，因为 [`alias`](https://www.man7.org/linux/man-pages/man1/alias.1p.html) 是一个 shell 命令，它只接受一个参数。且注意后面是“”在内**
+
+别名有许多很方便的特性:
+
+```bash
+# 创建常用命令的缩写
+alias ll="ls -lh"
+
+# 能够少输入很多
+alias gs="git status"
+alias gc="git commit"
+alias v="vim"
+
+# 手误打错命令也没关系
+alias sl=ls
+
+# 重新定义一些命令行的默认行为
+alias mv="mv -i"           # -i prompts before overwrite
+alias mkdir="mkdir -p"     # -p make parent dirs as needed
+alias df="df -h"           # -h prints human readable format
+
+# 别名可以组合使用
+alias la="ls -A"
+alias lla="la -l"
+
+# 在忽略某个别名
+\ls
+# 或者禁用别名
+unalias la
+
+# 获取别名的定义
+alias ll
+# 会打印 ll='ls -lh'
+```
+
+**值得注意的是，在默认情况下 shell 并不会保存别名。为了让别名持续生效，您需要将配置放进 shell 的启动文件里，像是`.bashrc` 或 `.zshrc`，下一节配置文件中我们就会讲到。**
+
+### 配置文件
+
+![1224tanshe1.png](https://raw.githubusercontent.com/sunmiao0301/Public-Pic-Bed/main/1224tanshe1.png)
+
+很多程序的配置都是通过纯文本格式的被称作***点文件***的配置文件来完成的（之所以称为点文件，是因为它们的文件名以 `.` 开头，例如 `~/.vimrc`。也正因为此，它们默认是隐藏文件，`ls`并不会显示它们）。
+
+shell 的配置也是通过这类文件完成的。在启动时，您的 shell 程序会读取很多文件以加载其配置项。根据 shell 本身的不同，您从登录开始还是以交互的方式完成这一过程可能会有很大的不同。关于这一话题，[这里](https://blog.flowblok.id.au/2013-02/shell-startup-scripts.html) 有非常好的资源。（如果你真的有条理，你会把所有的点文件放在某个地方的存储库中，这样你就可以在你工作的所有机器上保持你的设置同步。）
+
+**对于 `bash`来说，在大多数系统下，您可以通过编辑 `.bashrc` 或 `.bash_profile` 来进行配置。在文件中您可以添加需要在启动时执行的命令，例如上文我们讲到过的别名，或者是您的环境变量。**
+
+**实际上，很多程序都要求您在 shell 的配置文件中包含一行类似 `export PATH="$PATH:/path/to/program/bin"` 的命令，这样才能确保这些程序能够被 shell 找到。**
+
+还有一些其他的工具也可以通过*点文件*进行配置：
+
+- `bash` - `~/.bashrc`, `~/.bash_profile`
+- `git` - `~/.gitconfig`
+- `vim` - `~/.vimrc` 和 `~/.vim` 目录
+- `ssh` - `~/.ssh/config`
+- `tmux` - `~/.tmux.conf`
+
+我们应该如何管理这些配置文件呢，它们应该在它们的文件夹下，并使用版本控制系统进行管理，然后通过脚本将其 **符号链接** 到需要的地方。这么做有如下好处：
+
+- **安装简单**: 如果您登录了一台新的设备，在这台设备上应用您的配置只需要几分钟的时间；
+- **可以执行**: 您的工具在任何地方都以相同的配置工作
+- **同步**: 在一处更新配置文件，可以同步到其他所有地方
+- **变更追踪**: 您可能要在整个程序员生涯中持续维护这些配置文件，而对于长期项目而言，版本历史是非常重要的
+
+配置文件中需要放些什么？您可以通过在线文档和[帮助手册](https://en.wikipedia.org/wiki/Man_page)了解所使用工具的设置项。另一个方法是在网上搜索有关特定程序的文章，作者们在文章中会分享他们的配置。还有一种方法就是直接浏览其他人的配置文件：您可以在这里找到无数的[dotfiles 仓库](https://github.com/search?o=desc&q=dotfiles&s=stars&type=Repositories) —— 其中最受欢迎的那些可以在[这里](https://github.com/mathiasbynens/dotfiles)找到（我们建议您不要直接复制别人的配置）。
+
+**[这里](https://dotfiles.github.io/) 也有一些非常有用的资源。**
+
+本课程的老师们也在 GitHub 上开源了他们的配置文件： [Anish](https://github.com/anishathalye/dotfiles), [Jon](https://github.com/jonhoo/configs), [Jose](https://github.com/jjgo/dotfiles).
+
+### 可移植性
+
+配置文件的一个常见的痛点是它可能并不能在多种设备上生效。例如，如果您在不同设备上使用的操作系统或者 shell 是不同的，则配置文件是无法生效的。或者，有时您仅希望特定的配置只在某些设备上生效。
+
+有一些技巧可以轻松达成这些目的。如果配置文件 if 语句，则您可以借助它针对不同的设备编写不同的配置。例如，您的 shell 可以这样做：
+
+```shell
+if [[ "$(uname)" == "Linux" ]]; then {do_something}; fi
+
+# 使用和 shell 相关的配置时先检查当前 shell 类型
+if [[ "$SHELL" == "zsh" ]]; then {do_something}; fi
+
+# 您也可以针对特定的设备进行配置
+if [[ "$(hostname)" == "myServer" ]]; then {do_something}; fi
+```
+
+`~/.gitconfig` 可以这样编写：
+
+```shell
+[include]
+    path = ~/.gitconfig_local
+```
+
+然后我们可以在日常使用的设备上创建配置文件 `~/.gitconfig_local` 来包含与该设备相关的特定配置。您甚至应该创建一个单独的代码仓库来管理这些与设备相关的配置。
+
+如果您希望在不同的程序之间共享某些配置，该方法也适用。例如，如果您想要在 `bash` 和 `zsh` 中同时启用一些别名，您可以把它们写在 `.aliases` 里，然后在这两个 shell 里应用：
+
+```shell
+# Test if ~/.aliases exists and source it
+if [ -f ~/.aliases ]; then
+    source ~/.aliases
+fi
+```
+
+### 远端设备
+
+对于程序员来说，在他们的日常工作中使用远程服务器已经非常普遍了。如果您需要使用远程服务器来部署后端软件或您需要一些计算能力强大的服务器，您就会用到**安全 shell（SSH）**。
+
+和其他工具一样，SSH 也是可以高度定制的，也值得我们花时间学习它。 —— I agree with it.
+
+通过如下命令，您可以使用 `ssh` 连接到其他服务器：
+
+```bash
+ssh foo@bar.mit.edu
+```
+
+以上就是我们尝试以用户名 `foo` 登录服务器 `bar.mit.edu`。服务器可以通过 URL 指定（例如`bar.mit.edu`），也可以使用 IP 指定（例如`foobar@192.168.1.42`）。后面我们会介绍如何修改 ssh 配置文件使我们可以用类似 `ssh bar` 这样的命令来登录服务器。
+
+### 执行命令 —— 远程
+
+`ssh` 的一个经常被忽视的特性是它可以直接远程执行命令。 `ssh foobar@server ls` 可以直接在用foobar的命令下执行 `ls` 命令。 想要配合管道来使用也可以， `ssh foobar@server ls | grep PATTERN` 会在本地查询远端 `ls` 的输出而 `ls | ssh foobar@server grep PATTERN` 会在远端对本地 `ls` 输出的结果进行查询。
+
+```bash
+# 在本地查询远端ls的输出 
+# ssh root@ceph57 ls -l
+total 248
+-rw-------.  1 root root   1632 Nov 30 14:09 anaconda-ks.cfg
+-rw-r--r--   1 root root      1 Dec  3 16:54 br_netfilter
+-rw-r--r--   1 root root 217613 Dec  8 11:41 calico.yaml
+-rw-r--r--   1 root root      0 Dec 10 13:40 cluster.yaml
+-rw-r--r--   1 root root      0 Dec 10 16:21 common.yaml
+drwxr-xr-x  12 root root   4096 Dec  8 14:55 rook
+-rw-r--r--   1 root root    270 Dec 15 14:33 sa-db-cb.yaml
+-rw-r--r--   1 root root    107 Dec 15 14:35 sa-db.yaml
+-rwxr-xr-x   1 root root     83 Dec 11 13:46 set-proxy
+drwxr-xr-x   3 root root     38 Dec  9 15:34 summiao
+-rwxr-xr-x   1 root root     39 Dec 11 13:46 unset-proxy
+drwxr-xr-x   9 root root   4096 Dec 22 11:29 zhp
+
+# 在远端对本地 `ls` 输出的结果进行查询
+# ls | ssh root@ceph57
+msun@ceph57 ~ $ ls -l| ssh root@ceph57
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+root@ceph57's password: 
+-bash: line 1: total: command not found
+-bash: line 2: drwxrwxr-x: command not found
+-bash: line 3: -rw-rw-r--: command not found
+-bash: line 4: -rwxrw-r--: command not found
+-bash: line 5: -rw-rw-r--: command not found
+-bash: line 6: -rw-rw-r--: command not found
+-bash: line 7: -rw-rw-r--: command not found
+-bash: line 8: -rwxr-xr-x: command not found
+-bash: line 9: -rw-rw-r--: command not found
+-bash: line 10: -rw-rw-r--: command not found
+-bash: line 11: -rw-rw-r--: command not found
+
+## 我们应该给远端一个命令显示本地的ls结果
+## 如下即可
+## 下面的指令的意思是：
+## 在本地ls查询 -> 传到远端 cat读取 -> 读取的结果传回本地显示
+msun@ceph57 ~ $ ls | ssh root@ceph57 cat
+root@ceph57's password: 
+d_for_find
+dotfiles.md
+loop
+loop.txt
+ls.txt
+show-args.sh
+spa ce.html
+ssh.log
+xargs.html
+
+# PS 这一部分还是迷糊
+# 尝试使用ssh -t -t(或简称ssh -tt)强制进行伪tty分配，即使stdin不是终端。
+# 另请参见：终止由bash脚本执行的ssh会话
+# 从ssh手册页：
+# -T      Disable pseudo-tty allocation.
+# -t      Force pseudo-tty allocation.  This can be used to execute arbitrary
+#        screen-based programs on a remote machine, which can be very useful,
+#        e.g. when implementing menu services.  Multiple -t options force tty
+#        allocation, even if ssh has no local tty.
+msun@ceph57 ~ $ ls | ssh -tt root@ceph57
+d_for_find
+dotfiles.md
+loop
+loop.txt
+ls.txt
+show-args.sh
+spa ce.html
+ssh.log
+xargs.html
+Last failed login: Wed Dec 22 14:17:32 CST 2021 from 10.10.8.57 on ssh:notty
+There was 1 failed login attempt since the last successful login.
+Last login: Wed Dec 22 14:09:34 2021 from 10.10.8.57
+root@ceph57 ~ # d_for_find
+-bash: d_for_find: command not found
+root@ceph57 ~ # dotfiles.md
+-bash: dotfiles.md: command not found
+root@ceph57 ~ # loop
+-bash: loop: command not found
+root@ceph57 ~ # loop.txt
+-bash: loop.txt: command not found
+root@ceph57 ~ # ls.txt
+-bash: ls.txt: command not found
+root@ceph57 ~ # show-args.sh
+-bash: show-args.sh: command not found
+root@ceph57 ~ # spa ce.html
+-bash: spa: command not found
+root@ceph57 ~ # ssh.log
+-bash: ssh.log: command not found
+root@ceph57 ~ # xargs.html
+-bash: xargs.html: command not found
+```
+
+### SSH密钥
+
+基于密钥的验证机制使用了密码学中的公钥，我们只需要向服务器证明客户端持有对应的私钥，而不需要公开其私钥。这样您就可以避免每次登录都输入密码的麻烦了秘密就可以登录。不过，私钥(通常是 `~/.ssh/id_rsa` 或者 `~/.ssh/id_ed25519`) 等效于您的密码，所以一定要好好保存它。
+
+### 密钥生成
+
+使用 [`ssh-keygen`](http://man7.org/linux/man-pages/man1/ssh-keygen.1.html) 命令可以生成一对密钥：
+
+```
+ssh-keygen -o -a 100 -t ed25519 -f ~/.ssh/id_ed25519
+```
+
+您可以为密钥设置密码，防止有人持有您的私钥并使用它访问您的服务器。您可以使用 [`ssh-agent`](https://www.man7.org/linux/man-pages/man1/ssh-agent.1.html) 或 [`gpg-agent`](https://linux.die.net/man/1/gpg-agent) ，这样就不需要每次都输入该密码了。
+
+如果您曾经配置过使用 SSH 密钥推送到 GitHub，那么可能您**已经完成了[这里](https://help.github.com/articles/connecting-to-github-with-ssh/) 介绍的这些步骤**，并且已经有了一个可用的密钥对。要检查您是否持有密码并验证它，您可以运行 `ssh-keygen -y -f /path/to/key`.
+
+##### 介绍一下[这里](https://help.github.com/articles/connecting-to-github-with-ssh/) 的步骤 — 以GitHub为例
+
+使用 SSH 协议，您可以连接并验证远程服务器和服务。使用 SSH 密钥，您可以连接到 GitHub，而无需在每次访问时提供您的用户名和个人访问令牌。
+
+**对于GitHub而言，具体步骤是：**
+
+- SSH 密钥生成
+
+[检查现有的SSH密钥](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/checking-for-existing-ssh-keys)
+
+[生成新的SSH密钥](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent#generating-a-new-ssh-key)
+
+如果您不想在每次使用 SSH 密钥时重新输入密码，您可以将您的密钥添加到 SSH 代理，它管理您的 SSH 密钥并记住您的密码。见[将您的 SSH 密钥添加到 ssh-agent](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent#adding-your-ssh-key-to-the-ssh-agent)
+
+- 将新的 SSH 密钥添加到您的 GitHub 帐户
+
+[将新的 SSH 密钥添加到您的 GitHub 帐户](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account)
+
+- 测试您的 SSH 连接
+
+[测试您的 SSH 连接](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/testing-your-ssh-connection)
+
+- 使用 SSH 密钥密码
+
+[略]()
+
+使用 SSH 密钥，如果有人可以访问您的计算机，他们也可以访问使用该密钥的每个系统。要添加额外的安全层，您可以向 SSH 密钥添加密码。您可以使用`ssh-agent`安全地保存您的密码，这样您就不必重新输入它。
+
+**总体来说的ssh登录流程是：**
+
+- 远程服务器持有公钥，当有用户进行登录，服务器就会随机生成一串字符串，然后发送给正在进行登录的用户。
+- 用户收到远程服务器发来的字符串，使用与**远程服务器公钥配对的私钥**对字符串进行加密，再发送给远程服务器。
+- 服务器使用公钥对用户发来的加密字符串进行解密，得到的解密字符串如果与第一步中发送给客户端的随机字符串一样，那么判断为登录成功。
+
+### 基于密钥的认证机制
+
+`ssh` 会查询 `.ssh/authorized_keys` 来确认那些用户可以被允许登录。您可以通过下面的命令将一个公钥拷贝到这里：
+
+```bash
+cat .ssh/id_ed25519.pub | ssh foobar@remote 'cat >> ~/.ssh/authorized_keys'
+```
+
+如果支持 `ssh-copy-id` 的话，可以使用下面这种更简单的解决方案：
+
+```bash
+ssh-copy-id -i .ssh/id_ed25519.pub foobar@remote
+```
+
+### 通过 SSH 复制文件
+
+使用 ssh 复制文件有很多方法：
+
+- `ssh+tee`, 最简单的方法是执行 `ssh` 命令，然后通过这样的方法利用标准输入实现 `cat localfile | ssh remote_server tee serverfile`。回忆一下，[`tee`](https://www.man7.org/linux/man-pages/man1/tee.1.html) 命令会将标准输出写入到一个文件；
+
+```bash
+TEE(1)                                   User Commands                                   TEE(1)
+
+NAME
+       tee - read from standard input and write to standard output and files
+```
+
+```bash
+## 在本地机上
+msun@ceph57 ~ $ cat hello.txt
+hello
+msun@ceph57 ~ $ cat hello.txt | ssh root@ceph57 tee hello.txt
+root@ceph57's password: 
+hello
+
+# 在远端机上
+root@ceph57 ~ # cat hello.txt
+hello
+
+## 如上 就完成了将本地机的一个文件的内容 写入远端机的文件内
+```
+
+- [`scp`](https://www.man7.org/linux/man-pages/man1/scp.1.html) ：当需要拷贝大量的文件或目录时，使用`scp` 命令则更加方便，因为它可以方便的遍历相关路径。语法如下：`scp path/to/local_file remote_host:path/to/remote_file`；
+- p.s. scp = ssh cp
+
+```bash
+msun@ceph57 ~ $ scp /home/msun/loop.txt root@10.10.8.57:/
+root@10.10.8.57's password: 
+loop.txt                                                                              100% 1102     1.4MB/s   00:00  
+
+root@ceph57 / # ls
+bin   clustre.yaml  etc   lib    loop.txt  mnt  proc  run   srv  tmp  var
+boot  dev           home  lib64  media     opt  root  sbin  sys  usr
+
+# 说明 
+# 1.如果远程服务器防火墙有为scp命令设置了指定的端口，我们需要使用 -P 参数来设置命令的端口号，命令格式如下：
+#scp 命令使用端口号 4588
+# scp -P 4588 remote@www.runoob.com:/usr/local/sin.sh /home/administrator
+
+# 2.使用scp命令要确保使用的用户具有可读取远程服务器相应文件的权限，否则scp命令是无法起作用的。
+```
+
+- [`rsync`](https://www.man7.org/linux/man-pages/man1/rsync.1.html) 对 `scp` 进行了改进，它可以检测本地和远端的文件以防止重复拷贝。它还可以提供一些诸如符号连接、权限管理等精心打磨的功能。甚至还可以基于 `--partial`标记实现断点续传。`rsync` 的语法和`scp`类似；
+
+### 端口转发 — 重要
+
+很多情况下我们都会遇到软件需要监听特定设备的端口。如果是在您的本机，可以使用 `localhost:PORT` 或 `127.0.0.1:PORT`。但是如果需要监听远程服务器的端口该如何操作呢？这种情况下远端的端口并不会直接通过网络暴露给您。
+
+此时就需要进行 *端口转发*。端口转发有两种，一种是本地端口转发和远程端口转发（参见下图，该图片引用自这篇[StackOverflow 文章](https://unix.stackexchange.com/questions/115897/whats-ssh-port-forwarding-and-whats-the-difference-between-ssh-local-and-remot)）中的图片。
+
+常见的情景是使用本地端口转发，即远端设备上的服务监听一个端口，而您希望在本地设备上的一个端口建立连接并转发到远程端口上。例如，我们在远端服务器上运行 Jupyter notebook 并监听 `8888` 端口。 然后，建立从本地端口 `9999` 的转发，使用 `ssh -L 9999:localhost:8888 foobar@remote_server` 。这样只需要访问本地的 `localhost:9999` 即可。
+
+### SSH配置
+
+我们已经介绍了很多参数。为它们创建一个别名是个好想法，我们可以这样做：
+
+```bash
+alias my_server="ssh -i ~/.id_ed25519 --port 2222 -L 9999:localhost:8888 foobar@remote_server
+```
+
+不过，更好的方法是使用 `~/.ssh/config`.
+
+```bash
+Host vm
+    User foobar
+    HostName 172.16.174.141
+    Port 2222
+    IdentityFile ~/.ssh/id_ed25519
+    LocalForward 9999 localhost:8888
+
+# 在配置文件中也可以使用通配符
+Host *.mit.edu
+    User foobaz
+```
+
+这么做的好处是，使用 `~/.ssh/config` 文件来创建别名，类似 `scp`、`rsync`和`mosh`的这些命令都可以读取这个配置并将设置转换为对应的命令行选项。
+
+注意，`~/.ssh/config` 文件也可以被当作配置文件，而且一般情况下也是可以被导入其他配置文件的。不过，如果您将其公开到互联网上，那么其他人都将会看到您的服务器地址、用户名、开放端口等等。这些信息可能会帮助到那些企图攻击您系统的黑客，所以请务必三思。
+
+服务器侧的配置通常放在 `/etc/ssh/sshd_config`。您可以在这里配置免密认证、修改 shh 端口、开启 X11 转发等等。 您也可以为每个用户单独指定配置。
 
 ### 杂项
 
-- **图形用户界面**: Git 的 [图形用户界面客户端](https://git-scm.com/downloads/guis) 有很多，但是我们自己并不使用这些图形用户界面的客户端，我们选择使用命令行接口
-- **Shell 集成**: 将 Git 状态集成到您的 shell 中会非常方便。([zsh](https://github.com/olivierverdier/zsh-git-prompt), [bash](https://github.com/magicmonty/bash-git-prompt))。[Oh My Zsh](https://github.com/ohmyzsh/ohmyzsh)这样的框架中一般以及集成了这一功能
-- **编辑器集成**: 和上面一条类似，将 Git 集成到编辑器中好处多多。[fugitive.vim](https://github.com/tpope/vim-fugitive) 是 Vim 中集成 GIt 的常用插件
-- **工作流**: 我们已经讲解了数据模型与一些基础命令，但还没讨论到进行大型项目时的一些惯例 ( 有[很多](https://nvie.com/posts/a-successful-git-branching-model/) [不同的](https://www.endoflineblog.com/gitflow-considered-harmful) [处理方法](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow))
-- **GitHub**: Git 并不等同于 GitHub。 在 GitHub 中您需要使用一个被称作[拉取请求（pull request）](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests)的方法来向其他项目贡献代码
-- **其他 Git 提供商**: GitHub 并不是唯一的。还有像 [GitLab](https://about.gitlab.com/) 和 [BitBucket](https://bitbucket.org/) 这样的平台。
+连接远程服务器的一个常见痛点是遇到由关机、休眠或网络环境变化导致的掉线。如果连接的延迟很高也很让人讨厌。[Mosh](https://mosh.org/)（即 mobile shell ）对 ssh 进行了改进，它允许连接漫游、间歇连接及智能本地回显。
 
-### 资源
+有时将一个远端文件夹挂载到本地会比较方便， [sshfs](https://github.com/libfuse/sshfs) 可以将远端服务器上的一个文件夹挂载到本地，然后您就可以使用本地的编辑器了。
 
-- [Pro Git](https://git-scm.com/book/en/v2) ，**强烈推荐**！学习前五章的内容可以教会您流畅使用 Git 的绝大多数技巧，因为您已经理解了 Git 的数据模型。后面的章节提供了很多有趣的高级主题。（[Pro Git 中文版](https://git-scm.com/book/zh/v2)）；
-- [Oh Shit, Git!?!](https://ohshitgit.com/) ，简短的介绍了如何从 Git 错误中恢复；
-- [Git for Computer Scientists](https://eagain.net/articles/git-for-computer-scientists/) ，简短的介绍了 Git 的数据模型，与本文相比包含较少量的伪代码以及大量的精美图片；
-- [Git from the Bottom Up](https://jwiegley.github.io/git-from-the-bottom-up/)详细的介绍了 Git 的实现细节，而不仅仅局限于数据模型。好奇的同学可以看看；
-- [How to explain git in simple words](https://smusamashah.github.io/blog/2017/10/14/explain-git-in-simple-words)；
-- [Learn Git Branching](https://learngitbranching.js.org/) 通过基于浏览器的游戏来学习 Git ；
+### Shell & 框架
+
+在 shell 工具和脚本那节课中我们已经介绍了 `bash` shell，因为它是目前最通用的 shell，大多数的系统都将其作为默认 shell。但是，它并不是唯一的选项。
+
+例如，`zsh` shell 是 `bash` 的超集并提供了一些方便的功能：
+
+- 智能替换, `**`
+- 行内替换/通配符扩展
+- 拼写纠错
+- 更好的 tab 补全和选择
+- 路径展开 (`cd /u/lo/b` 会被展开为 `/usr/local/bin`)
+
+**框架** 也可以改进您的 shell。比较流行的通用框架包括[prezto](https://github.com/sorin-ionescu/prezto) 或 [oh-my-zsh](https://ohmyz.sh/)。还有一些更精简的框架，它们往往专注于某一个特定功能，例如[zsh 语法高亮](https://github.com/zsh-users/zsh-syntax-highlighting) 或 [zsh 历史子串查询](https://github.com/zsh-users/zsh-history-substring-search)。 像 [fish](https://fishshell.com/) 这样的 shell 包含了很多用户友好的功能，其中一些特性包括：
+
+- 向右对齐
+- 命令语法高亮
+- 历史子串查询
+- 基于手册页面的选项补全
+- 更智能的自动补全
+- 提示符主题
+
+需要注意的是，使用这些框架可能会降低您 shell 的性能，尤其是如果这些框架的代码没有优化或者代码过多。您随时可以测试其性能或禁用某些不常用的功能来实现速度与功能的平衡。
+
+### 终端模拟器
+
+和自定义 shell 一样，花点时间选择适合您的 **终端模拟器**并进行设置是很有必要的。有许多终端模拟器可供您选择（这里有一些关于它们之间[比较](https://anarc.at/blog/2018-04-12-terminal-emulators-1/)的信息）
+
+您会花上很多时间在使用终端上，因此研究一下终端的设置是很有必要的，您可以从下面这些方面来配置您的终端：
+
+- 字体选择
+- 彩色主题
+- 快捷键
+- 标签页/面板支持
+- 回退配置
+- 性能（像 [Alacritty](https://github.com/jwilm/alacritty) 或者 [kitty](https://sw.kovidgoyal.net/kitty/) 这种比较新的终端，它们支持GPU加速）。
 
 # HOMEWORK
 
-[习题解答](https://missing-semester-cn.github.io/missing-notes-and-solutions/2020/solutions//version-control-solution)
+## 任务控制
 
-1. 如果您之前从来没有用过 Git，推荐您阅读 [Pro Git](https://git-scm.com/book/en/v2) 的前几章，或者完成像 [Learn Git Branching](https://learngitbranching.js.org/)这样的教程。重点关注 Git 命令和数据模型相关内容；
-
-2. Fork[本课程网站的仓库](https://github.com/missing-semester/missing-semester)
+1. 我们可以使用类似 `ps aux | grep` 这样的命令来获取任务的 pid ，然后您可以基于pid 来结束这些进程。但我们其实有更好的方法来做这件事。在终端中执行 `sleep 10000` 这个任务。然后用 `Ctrl-Z` 将其切换到后台并使用 `bg`来继续允许它。现在，使用 [`pgrep`](https://www.man7.org/linux/man-pages/man1/pgrep.1.html) 来查找 pid 并使用 [`pkill`](https://www.man7.org/linux/man-pages/man1/pgrep.1.html) 结束进程而不需要手动输入pid。(提示：: 使用 `-af` 标记)。
 
    ```bash
-   # why fork?
-   # A fork is a copy of a repository. Forking a repository allows you to freely experiment with changes without affecting the original project.
-   ```
-
-   1. 将版本历史可视化并进行探索
-
-      ```bash
-      /d/repo (master)
-      $ Cloning into 'missing-semester'...
-      /d/repo (master)
-      bash: syntax error near unexpected token `master'
-      remote: Enumerating objects: 2071, done.
-      remote: Counting objects: 100% (173/173), done.
-      remote: Compressing objects: 100% (93/93), done.
-      remote: Total 2071 (delta 88), reused 130 (delta 72), pack-reused 1898
-      Receiving objects: 100% (2071/2071), 15.63 MiB | 3.81 MiB/s, done.
-      Resolving deltas: 100% (1214/1214), done.
-      
-      /d/repo (master)
-      $ cd missing-semester
-      
-      /d/repo/missing-semester (master)
-      $ git log --all --graph --decorate
-      *   commit c2f9535271f03bc4c8865e32abf0dbf9bb131a5c (HEAD -> master, origin/master, origin/HEAD)
-      |\  Merge: 8cc6609 e4383e7
-      | | Author: Jon Gjengset <jon@thesquareplanet.com>
-      | | Date:   Wed Dec 8 23:10:46 2021 -0500
-      | |
-      | |     Merge pull request #172 from chapmanjacobd/patch-1
-      | |
-      | |     Add Alt+.
-      | |
-      | * commit e4383e7971589f93ac36ff9e96d3904f32319393
-      | | Author: Jacob Chapman <7908073+chapmanjacobd@users.noreply.github.com>
-      | | Date:   Thu Nov 25 17:04:21 2021 -0600
-      | |
-      | |     Add Alt+.
-      | |
-      * | commit 8cc6609126f34fdd465001bdbbf095ae2d9721eb
-      | | Author: Anish Athalye <me@anishathalye.com>
-      | | Date:   Sat Dec 4 05:19:49 2021 -0500
-      | |
-      | |     Add ignored URL
-      | |
-      * |   commit ad4d14f30cff1926a0693dd94ce9b99a80d87488
-      |\ \  Merge: f62424f ece6aca
-      | |/  Author: Jon Gjengset <jon@thesquareplanet.com>
-      |/|   Date:   Fri Dec 3 15:06:51 2021 -0500
-      | |
-      | |       Merge pull request #173 from UranusITS/master
-      | |
-      | |       fix typo
-      | |
-      | * commit ece6aca1a4f289ae01bb291a19b52a44c7313187
-      |/  Author: Uranus <whlisikuang@outlook.com>
-      ```
-
-   2. 是谁最后修改了 `README.md`文件？（提示：使用 `git log` 命令并添加合适的参数）
-
-      ```bash
-      # 我尝试的是 
-      /d/repo/missing-semester (master)
-      $ git log | grep README
-          Add build status to README
-          Remove link to Hacker Tools from README
-          Update README
-      
-      # 但是应该是
-      /d/repo/missing-semester (master)
-      $ git log README.md
-      commit 8010724516adc968765e8efd14991f262f0d0423
-      Author: Anish Athalye <me@anishathalye.com>
-      Date:   Tue Jul 27 08:29:08 2021 -0400
-      
-          Separate build and links status
-      ```
-
-   3. 最后一次修改`_config.yml` 文件中 `collections:` 行时的提交信息是什么？（提示：使用 `git blame` 和 `git show`）
-
-      ```bash
-      # git-blame
-      # git-blame - Show what revision and author last modified each line of a file
-      
-      # 通过 git blame 得到哈希值
-      /d/repo/missing-semester (master)
-      $ git blame _config.yml | grep collections
-      a88b4eac (Anish Athalye 2020-01-17 15:26:30 -0500 18) collections:
-      
-      # 通过git show 得到哈希值对应的commit的信息
-      /d/repo/missing-semester (master)
-      $ git show a88b4eac
-      commit a88b4eac326483e29bdac5ee0a39b180948ae7fc
-      Author: Anish Athalye <me@anishathalye.com>
-      Date:   Fri Jan 17 15:26:30 2020 -0500
-      
-          Redo lectures as a collection
-      
-      diff --git a/2020/index.html b/2020/index.html
-      deleted file mode 100644
-      index 153ddc8..0000000
-      --- a/2020/index.html
-      +++ /dev/null
-      @@ -1,5 +0,0 @@
-      ----
-      -layout: redirect
-      -redirect: /
-      -title: Missing Semester 2020
-      ----
-      diff --git a/2019/automation.md b/_2019/automation.md
-      similarity index 100%
-      rename from 2019/automation.md
-      rename to _2019/automation.md
-      diff --git a/2019/backups.md b/_2019/backups.md
-      similarity index 100%
-      rename from 2019/backups.md
-      rename to _2019/backups.md
-      diff --git a/2019/command-line.md b/_2019/command-line.md
-      similarity index 100%
-      rename from 2019/command-line.md
-      rename to _2019/command-line.md
-      diff --git a/2019/course-overview.md b/_2019/course-overview.md
-      similarity index 100%
-      rename from 2019/course-overview.md
-      
-      
-      ```
-
-3. 使用 Git 时的一个常见错误是提交本不应该由 Git 管理的大文件，或是将含有敏感信息的文件提交给 Git 。尝试向仓库中添加一个文件并添加提交信息，然后将其从历史中删除 ( [这篇文章也许会有帮助](https://help.github.com/articles/removing-sensitive-data-from-a-repository/))；
-
-   ```bash
-   # ssh到本地
-   hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo (master)
-   $ git clone git@github.com:sunmiao0301/Public-Pic-Bed.git
-   Cloning into 'Public-Pic-Bed'...
-   remote: Enumerating objects: 28, done.
-   remote: Counting objects: 100% (19/19), done.
-   remote: Compressing objects: 100% (18/18), done.
-   remote: Total 28 (delta 5), reused 0 (delta 0), pack-reused 9
-   Receiving objects: 100% (28/28), 438.95 KiB | 487.00 KiB/s, done.
-   Resolving deltas: 100% (5/5), done.
+   # PID 是 进程号
+   msun@ceph57 ~ $ sleep 10000
+   ^Z
+   [1]+  Stopped                 sleep 10000
+   msun@ceph57 ~ $ jobs
+   [1]+  Stopped                 sleep 10000
+   msun@ceph57 ~ $ bg
+   [1]+ sleep 10000 &
+   msun@ceph57 ~ $ jobs
+   [1]+  Running                 sleep 10000 &
+   msun@ceph57 ~ $ pgrep sleep
+   18430
+   18431
+   18432
+   18433
+   18434
+   18435
+   18436
+   18437
+   20010
+   20342
+   msun@ceph57 ~ $ pkill -ef sleep
+   pkill: killing pid 18430 failed: Operation not permitted
+   pkill: killing pid 18431 failed: Operation not permitted
+   pkill: killing pid 18432 failed: Operation not permitted
+   pkill: killing pid 18433 failed: Operation not permitted
+   pkill: killing pid 18434 failed: Operation not permitted
+   pkill: killing pid 18435 failed: Operation not permitted
+   pkill: killing pid 18436 failed: Operation not permitted
+   pkill: killing pid 18437 failed: Operation not permitted
+   sleep killed (pid 20010)
+   pkill: killing pid 21223 failed: Operation not permitted
+   [1]+  Terminated              sleep 10000
+   msun@ceph57 ~ $ jobs
    
-   # 进入repository
-   hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo (master)
-   $ cd Public-Pic-Bed
-   
-   # 看文件
-   hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
-   $ ls
-   1216Ceph_stack.png  1224SwitchOmega.png  1227git.png
-   1224Dynamic.png     1224local.png        211216zhp1.png
-   1224LaTex.png       1224tanshe1.png      README.md
-   
-   # 新建一个txt
-   hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
-   $ echo "pw is 123" > pw.txt
-   
-   # new a file, done
-   hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
-   $ ls
-   1216Ceph_stack.png  1224SwitchOmega.png  1227git.png     pw.txt
-   1224Dynamic.png     1224local.png        211216zhp1.png
-   1224LaTex.png       1224tanshe1.png      README.md
-   
-   # add
-   hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
-   $ git add .
-   warning: LF will be replaced by CRLF in pw.txt.
-   The file will have its original line endings in your working directory
-   
-   # add, done
-   hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
-   $ git status
-   On branch main
-   Your branch is up to date with 'origin/main'.
-   
-   Changes to be committed:
-     (use "git restore --staged <file>..." to unstage)
-           new file:   pw.txt
-   
-   # commit
-   hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
-   $  git commit -m "my password"
-   [main 156a097] my password
-    1 file changed, 1 insertion(+)
-    create mode 100644 pw.txt
-   
-   # commit, done
-   hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
-   $ git status
-   On branch main
-   Your branch is ahead of 'origin/main' by 1 commit.
-     (use "git push" to publish your local commits)
-   
-   nothing to commit, working tree clean
-   
-   # 看日志
-   hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
-   $ git log HEAD
-   commit 156a09768a474b4ad74ae6a6488716a48df03fe3 (HEAD -> main)
-   Author: sunmiao0301 <hfut_sm@163.com>
-   Date:   Mon Dec 27 11:10:43 2021 +0800
-   
-       my password
-   
-   # 回退
-   hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
-   $ git reset --soft HEAD^
-   
-   # done
-   hfut_@DESKTOP-HA2C4BG MINGW64 /d/repo/Public-Pic-Bed (main)
-   $ git status
-   On branch main
-   Your branch is up to date with 'origin/main'.
-   
-   Changes to be committed:
-     (use "git restore --staged <file>..." to unstage)
-           new file:   pw.txt
-           
-   # 这样就成功的撤销了你的commit，注意，仅仅是撤回commit操作，您写的代码仍然保留。
-   
-   # HEAD^的意思是上一个版本，也可以写成HEAD~1
-   # 如果你进行了2次commit，想都撤回，可以使用HEAD~2
-   # 至于这几个参数：
-   # --mixed 
-   # 意思是：不删除工作空间改动代码，撤销commit，并且撤销git add . 操作这个为默认参数,git reset --mixed HEAD^ 和 git reset HEAD^ 效果是一样的。
-   # --soft 
-   # 不删除工作空间改动代码，撤销commit，不撤销git add . 
-   # --hard
-   # 删除工作空间改动代码，撤销commit，撤销git add .
-   # 完成这个操作后，就恢复到了上一次的commit状态。
-   
-   # 顺便说一下，如果commit注释写错了，只是想改一下注释，只需要：git commit --amend，此时会进入默认vim编辑器，修改注释完毕后保存就ok了。
-   ```
-
-   [原文链接](https://blog.csdn.net/w958796636/article/details/53611133)
-
-4. 从 GitHub 上克隆某个仓库，修改一些文件。当您使用 `git stash` 会发生什么？当您执行 `git log --all --oneline` 时会显示什么？通过 `git stash pop` 命令来撤销 `git stash` 操作，什么时候会用到这一技巧？
-
-   ```bash
-   # git-stash
-   # git-stash - Stash the changes in a dirty working directory away
-   
-   # 「使用场景」 当你接到一个修复紧急 bug 的任务时候，一般都是先创建一个新的 bug 分支来修复它，然后合并，最后删除。但是，如果当前你正在开发功能中，短时间还无法完成，无法直接提交到仓库，这时候可以先把当前工作区的内容 git stash 一下，然后去修复 bug，修复后，再 git stash pop，恢复之前的工作内容。
-   ```
-
-5. 与其他的命令行工具一样，Git 也提供了一个名为 `~/.gitconfig` 配置文件 (或 dotfile)。请在 `~/.gitconfig` 中创建一个别名，使您在运行 `git graph` 时，您可以得到 `git log --all --graph --decorate --oneline` 的输出结果；
-
-   ```bash
-   /d/repo/missing-semester (master)
-   $ cd /d
-   
-   /d (master)
-   $ cd Git
-   
-   /d/Git (master)
-   $ ls
-   LICENSE.txt        bin/  dev/  git-bash.exe*  mingw64/  unins000.dat   unins000.msg
-   ReleaseNotes.html  cmd/  etc/  git-cmd.exe*   tmp/      unins000.exe*  usr/
-   cd
-   /d/Git (master)
-   $ cd etc
-   
-   /d/Git/etc (master)
-   $ ls
-   DIR_COLORS        fstab          inputrc              nanorc                pkcs11/     protocols  vimrc
-   bash.bash_logout  gitattributes  install-options.txt  networks              pki/        services
-   bash.bashrc       gitconfig      msystem              nsswitch.conf         profile     ssh/
-   docx2txt.config   hosts          mtab@                package-versions.txt  profile.d/  tigrc
-   
-   /d/Git/etc (master)
-   $ ls -a
-   ./                bash.bashrc      gitconfig            msystem   nsswitch.conf         profile     ssh/
-   ../               docx2txt.config  hosts                mtab@     package-versions.txt  profile.d/  tigrc
-   DIR_COLORS        fstab            inputrc              nanorc    pkcs11/               protocols   vimrc
-   bash.bash_logout  gitattributes    install-options.txt  networks  pki/                  services
-   
-   /d/Git/etc (master)
-   $ cat gitconfig
-   [diff "astextplain"]
-           textconv = astextplain
-   [filter "lfs"]
-           clean = git-lfs clean -- %f
-           smudge = git-lfs smudge -- %f
-           process = git-lfs filter-process
-           required = true
-   [http]
-           sslBackend = openssl
-           sslCAInfo = D:/Git/mingw64/ssl/certs/ca-bundle.crt
-   [core]
-           autocrlf = true
-           fscache = true
-           symlinks = false
-   [pull]
-           rebase = false
-   [credential]
-           helper = manager-core
-   [credential "https://dev.azure.com"]
-           useHttpPath = true
-   [init]
-           defaultBranch = master
-   
-   # 直接在最后一行修改加入之后运行git graph 如下
-   /d/repo/missing-semester
-   $ git graph
-   fatal: bad config line 25 in file D:/Git/etc/gitconfig
-   
-   # 好像在Windows上 gitbash的alias文件在 D:\Git\etc\profile.d （D:是gitbash的安装目录）
-   # 并且 git graph 好像不行
-   # 得是 git-graph
-   # 如下
-   /d/repo/missing-semester
-   $ git-graph
-   *   c2f9535 (HEAD -> master, origin/master, origin/HEAD) Merge pull request #172 from chapmanjacobd/patch-1
-   |\
-   | * e4383e7 Add Alt+.
-   * | 8cc6609 Add ignored URL
-   * |   ad4d14f Merge pull request #173 from UranusITS/master
-   |\ \
-   | |/
-   |/|
-   | * ece6aca fix typo
-   |/
-   *   f62424f Merge branch 'ds2606/master'
-   |\
-   | * 63a2509 fixed checked nav-bar block styling on media query
-   |/
-   * 4c80259 Add a really nice strace zine resource (#168)
-   *   676944b Merge branch 'jtomori/fix-kill-cmd'
-   |\
-   | * 09991f3 Fix kill parameter to list signals.
-   |/
-   * 0c9c024 Fix broken links
-   * 731a005 Fix broken link
-   * 839adce Add a github tutorial on how to contribute (#162)
-   *   2d1a558 Merge branch 'kumatheworld/fix-numbering'
-   |\
-   | * 157dd68 Fix list numbering
-   |/
-   *   602282f Merge branch 'LemurP/master'
-   |\
-   | * 154aa87 Add link to Git alias section in exercise
-   ```
-
-   ![1228gitbashalias.png](https://raw.githubusercontent.com/sunmiao0301/Public-Pic-Bed/main/1228gitbashalias.png)
-
-   ```bash
-   # 根据答案以及测试 如下也可
-    [alias]
-        graph = log --all --graph --decorate --oneline
-     
-   # 具体如下
-   /d/repo/missing-semester
-   $ cat "C:\Users\hfut_\.gitconfig"
-   [filter "lfs"]
-           clean = git-lfs clean -- %f
-           smudge = git-lfs smudge -- %f
-           process = git-lfs filter-process
-           required = true
-   [user]
-           name = sunmiao0301
-           email = hfut_sm@163.com
-   [http]
-           proxy = 127.0.0.1:33210
-   [pgp]
-           program = gpg2
-   [gpg]
-           program = gpg2
-   [alias]
-           git-graph='git-graph"="git log --all --graph --decorate --oneline'
-   ```
-
-6. 您可以通过执行 `git config --global core.excludesfile ~/.gitignore_global` 在 `~/.gitignore_global` 中创建全局忽略规则。配置您的全局 gitignore 文件来自动忽略系统或编辑器的临时文件，例如 `.DS_Store`；
-
-   ```bash
-   git config --global core.excludesfile ~/.gitignore .DS_Store
-   ```
-
-7. 克隆 [本课程网站的仓库](https://github.com/missing-semester/missing-semester)，找找有没有错别字或其他可以改进的地方，在 GitHub 上发起拉取请求（Pull Request）；
-
-   *详细fork及pr过程参见[这里](https://docs.github.com/en/get-started/quickstart/fork-a-repo)下面是我的一次成功fork&PR经历*
-
-   *以下综合参阅[github教程1](https://docs.github.com/en/get-started/quickstart/fork-a-repo)和[github教程2](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/syncing-a-fork)和[jarv.isblog](https://jarv.is/notes/how-to-pull-request-fork-github/)*
-
-   ```bash
-   # 首先克隆你的fork，注意是克隆原始存储库到你的仓库的fork而不是原始存储库
-   /d/repo (master)
-   $ git clone https://github.com/sunmiao0301/missing-semester.git
-   Cloning into 'missing-semester'...
-   remote: Enumerating objects: 2071, done.
-   remote: Counting objects: 100% (173/173), done.
-   remote: Compressing objects: 100% (92/92), done.
-   remote: Total 2071 (delta 88), reused 132 (delta 73), pack-reused 1898
-   Receiving objects: 100% (2071/2071), 15.63 MiB | 2.73 MiB/s, done.
-   Resolving deltas: 100% (1214/1214), done.
-   
-   # 进入克隆出的本地存储库
-   /d/repo (master)
-   $ cd missing-semester
-   
-   # 查看
-   /d/repo/missing-semester (master)
-   $ git remote -v
-   origin  https://github.com/sunmiao0301/missing-semester.git (fetch)
-   origin  https://github.com/sunmiao0301/missing-semester.git (push)
-   
-   # 新建一个上游upstream，注意此时clone的是原始存储库的https，而不是fork得到的存储库的https
-   /d/repo/missing-semester (master)
-   $ git remote add upstream https://github.com/missing-semester/missing-semester.git
-   
-   # 再次检查一下 发现多出了upstream
-   /d/repo/missing-semester (master)
-   $ git remote -v
-   origin  https://github.com/sunmiao0301/missing-semester.git (fetch)
-   origin  https://github.com/sunmiao0301/missing-semester.git (push)
-   upstream        https://github.com/missing-semester/missing-semester.git (fetch)
-   upstream        https://github.com/missing-semester/missing-semester.git (push)
-   
-   # 拿来上游
-   /d/repo/missing-semester (master)
-   $ git fetch upstream
-   remote: Enumerating objects: 8, done.
-   remote: Counting objects: 100% (8/8), done.
-   remote: Compressing objects: 100% (2/2), done.
-   remote: Total 5 (delta 3), reused 5 (delta 3), pack-reused 0
-   Unpacking objects: 100% (5/5), 746 bytes | 7.00 KiB/s, done.
-   From https://github.com/missing-semester/missing-semester
-    * [new branch]      assets     -> upstream/assets
-    * [new branch]      master     -> upstream/master
-   
-   # 进入master（虽然早就在master里面了，但是这是需要注意的一个步骤）
-   /d/repo/missing-semester (master)
-   $ git checkout master
-   Already on 'master'
-   Your branch is up to date with 'origin/master'.
-   
-   # 合并上游和本地master
-   /d/repo/missing-semester (master)
-   $ git merge upstream/master
-   Updating c2f9535..0601c2c
-   Fast-forward
-    _2020/data-wrangling.md | 2 +-
-    1 file changed, 1 insertion(+), 1 deletion(-)
-   
-   ## 新建一个本地master之外的分支 ——> devise-some-sentence 
-   ## 并且进入
-   /d/repo/missing-semester (master)
-   $ git checkout -b devise-some-sentence upstream/master
-   Switched to a new branch 'devise-some-sentence'
-   Branch 'devise-some-sentence' set up to track remote branch 'master' from 'upstream'.
-   
-   # add
-   /d/repo/missing-semester (devise-some-sentence)
-   $ git add .
-   
-   # commit
-   /d/repo/missing-semester (devise-some-sentence)
-   $ git commit -m "do some change to improve the reading experience"
-   [devise-some-sentence 68083ef] do some change to improve the reading experience
-    1 file changed, 13 insertions(+), 13 deletions(-)
-   
-   # push到新分支 devise-some-senetence 而不是master
-   /d/repo/missing-semester (devise-some-sentence)
-   $ git push -u origin devise-some-sentence
-   Enumerating objects: 7, done.
-   Counting objects: 100% (7/7), done.
-   Delta compression using up to 12 threads
-   Compressing objects: 100% (4/4), done.
-   Writing objects: 100% (4/4), 467 bytes | 467.00 KiB/s, done.
-   Total 4 (delta 3), reused 0 (delta 0), pack-reused 0
-   remote: Resolving deltas: 100% (3/3), completed with 3 local objects.
-   remote:
-   remote: Create a pull request for 'devise-some-sentence' on GitHub by visiting:
-   remote:      https://github.com/sunmiao0301/missing-semester/pull/new/devise-some-sentence
-   remote:
-   To https://github.com/sunmiao0301/missing-semester.git
-    * [new branch]      devise-some-sentence -> devise-some-sentence
-   Branch 'devise-some-sentence' set up to track remote branch 'devise-some-sentence' from 'origin'.
-   ```
-
-   完成这一系列操作之后来到GitHub，可以看到在原始存储库下面可以PR了
-
-   ![1](https://raw.githubusercontent.com/sunmiao0301/Public-Pic-Bed/main/1229fork%26PR.png)
-
-   往下翻动，也可以看到你所做的变动
-
-   ![2](https://raw.githubusercontent.com/sunmiao0301/Public-Pic-Bed/main/1229somechangesinbranch.png)
-
-   提交PR之后，可以看到需要被原主人review的提示
-
-   ![3](https://raw.githubusercontent.com/sunmiao0301/Public-Pic-Bed/main/1229resultinPR.png)
-
-   在项目里面，也可以看到多了一个在gitbash里创建的branch。
-
-   ![4](https://raw.githubusercontent.com/sunmiao0301/Public-Pic-Bed/main/1229newbranch.png)
-
-   ```bash
-   # 聊天记录
-   淼:
-   我的理解是
-   
-   淼:
-   fork
-   
-   淼:
-   然后把你fork的仓库clone到本地
-   
-   淼:
-   这时候还没有上游
-   
-   淼:
-   然后在gitbash里进入这个本地
-   
-   淼:
-   通过原始存储库clone来新建一个上游
-   
-   淼:
-   然后这个上游就可以用来更新仓库主人的最新动态
-   
-   淼:
-   但是这时候你本地只有一个master
-   
-   淼:
-   master可以留着去用来fetch上游的变动
-   
-   淼:
-   所以再新建一个分支branchzhp
-   
-   淼:
-   然后本地修改
-   
-   淼:
-   add & commit
-   
-   淼:
-   最后push到branchzhp里面
-   
-   淼:
-   最后去GitHub上，就能看到你的修改，继而提交PR就完事了
-   
-   沧音:
-   可以动而且有必要动
-   
-   淼:
-   愿闻其详
-   
-   沧音:
-   如果你的改动不算太小，比如说 milestone 级别的，可以同步上游更新之后，把自己的分支合并到 master，再在master上push
-   或者说你仅仅只改动一次（PR之后就删库），可以直接在msater上修改，把master分支push到上游的小分支
-   再或者你打算长期参与此项目（这个时候就不用fork了，直接变成contributor），那么长期积累的commit也可以直接合并到master作为一个大更新push到上游（是否merge PR，还要看原开发者的review意见）
-   ```
-
-   ## Supplement from video
-
-   ```bash
-   ~
-   $ cd /d
-   
-   /d (master)
-   $ mkdir demo
-   
-   /d (master)
-   $ cd demo
-   
-   /d/demo (master)
-   $ ls
-   
-   /d/demo (master)
-   $ git init
-   Initialized empty Git repository in D:/demo/.git/
-   
-   /d/demo (master)
-   $ ls
-   
-   # git init 使得生成了隐藏文件
-   /d/demo (master)
-   $ ls -a
-   ./  ../  .git/
-   
-   /d/demo (master)
-   $ ls .git
-   HEAD  config  description  hooks/  info/  objects/  refs/
-   
-   # 如下命令会打开一个网页 关于git init的讲解
-   /d/demo (master)
-   $ git help init
-   
-   /d/demo (master)
-   $ echo "hello world" > hello.txt
-   
-   /d/demo (master)
-   $ ls
-   hello.txt
-   
-   /d/demo (master)
-   $ git status
-   On branch master
-   
-   No commits yet
-   # it mains that there is a new created file in currently file but not included in the next snapshot
-   Untracked files:
-     (use "git add <file>..." to include in what will be committed)
-           hello.txt
-   
-   nothing added to commit but untracked files present (use "git add" to track)
-   
-   /d/demo (master)
-   $ git add hello.txt
-   warning: LF will be replaced by CRLF in hello.txt.
-   The file will have its original line endings in your working directory
-   
-   /d/demo (master)
-   $ git status
-   On branch master
-   
-   No commits yet
-   
-   Changes to be committed:
-     (use "git rm --cached <file>..." to unstage)
-           new file:   hello.txt
-   
-   # run git commit
-   
-   Add hello.txt
-   # Please enter the commit message for your changes. Lines starting
-   # with '#' will be ignored, and an empty message aborts the commit.
    #
-   # On branch master
-   #
-   # Initial commit
-   #
-   # Changes to be committed:
-   #       new file:   hello.txt
-   #
-   ~
-   ~
-   ~
-   ~
-   ~
-   ~
-   ~
-   ~
-   ~
-   ~
-   ~
-   D:/demo/.git/COMMIT_EDITMSG [unix] (14:27 27/12/2021)                  1,0-1 All
-   "D:/demo/.git/COMMIT_EDITMSG" [unix] 11L, 231B
-   
-   # Esc -> :x
-   
-   /d/demo (master)
-   $ git commit
-   [master (root-commit) c87b88b] Add hello.txt
-    1 file changed, 1 insertion(+)
-    create mode 100644 hello.txt
-   
-   /d/demo (master)
-   $ git log
-   commit c87b88b4bef7456bc621f711b25464c0fb19fb6b (HEAD -> master)
-   Author: sunmiao0301 <hfut_sm@163.com>
-   Date:   Mon Dec 27 14:27:13 2021 +0800
-   
-       Add hello.txt
-   
-   /d/demo (master)
-   $ echo "another line" >> hello.txt
-   
-   /d/demo (master)
-   $ cat hello.txt
-   hello world
-   another line
-   
-   # 因为只是做了修改 而没有将其add到目前的暂存区中 所以无法commit
-   /d/demo (master)
-   $ git commit
-   On branch master
-   Changes not staged for commit:
-     (use "git add <file>..." to update what will be committed)
-     (use "git restore <file>..." to discard changes in working directory)
-           modified:   hello.txt
-   
-   no changes added to commit (use "git add" and/or "git commit -a")
-   
-   /d/demo (master)
-   $ git add hello.txt
-   warning: LF will be replaced by CRLF in hello.txt.
-   The file will have its original line endings in your working directory
-   
-   /d/demo (master)
-   $ git status
-   On branch master
-   # this file is ready to be commit
-   Changes to be committed:
-     (use "git restore --staged <file>..." to unstage)
-           modified:   hello.txt
-   
-   /d/demo (master)
-   $ git commit
-   [master 7d7b3d9] X
-    1 file changed, 1 insertion(+)
-   
-   # the new change has made
-   
-   # github is a host for github repositories
-   
-   /d/demo (master)
-   $ git log --all --graph  --decorate
-   #### 可以看到 目前的head -> master
-   * commit 7d7b3d91e0121a5e141b3768db7653767bb46b1d (HEAD -> master)
-   | Author: sunmiao0301 <hfut_sm@163.com>
-   | Date:   Mon Dec 27 14:38:41 2021 +0800
-   |
-   |     X
-   |
-   * commit c87b88b4bef7456bc621f711b25464c0fb19fb6b
-     Author: sunmiao0301 <hfut_sm@163.com>
-     Date:   Mon Dec 27 14:27:13 2021 +0800
-   
-         Add hello.txt
-   
-   /d/demo (master)
-   $ git checkout c87b88b4
-   Note: switching to 'c87b88b4'.
-   
-   You are in 'detached HEAD' state. You can look around, make experimental
-   changes and commit them, and you can discard any commits you make in this
-   state without impacting any branches by switching back to a branch.
-   
-   If you want to create a new branch to retain commits you create, you may
-   do so (now or later) by using -c with the switch command. Example:
-   
-     git switch -c <new-branch-name>
-   
-   Or undo this operation with:
-   
-     git switch -
-   
-   Turn off this advice by setting config variable advice.detachedHead to false
-   
-   HEAD is now at c87b88b Add hello.txt
-   
-   /d/demo ((c87b88b...))
-   $ git log --all --graph  --decorate
-   * commit 7d7b3d91e0121a5e141b3768db7653767bb46b1d (master)
-   | Author: sunmiao0301 <hfut_sm@163.com>
-   | Date:   Mon Dec 27 14:38:41 2021 +0800
-   |
-   |     X
-   |
-   * commit c87b88b4bef7456bc621f711b25464c0fb19fb6b (HEAD)
-   #### 可以看到head来到了这儿
-     Author: sunmiao0301 <hfut_sm@163.com>
-     Date:   Mon Dec 27 14:27:13 2021 +0800
-   
-         Add hello.txt
-   
-   /d/demo ((c87b88b...))
-   
-   /d/demo ((c87b88b...))
-   $ git checkout master
-   Previous HEAD position was c87b88b Add hello.txt
-   Switched to branch 'master'
-   
-   /d/demo (master)
-   $ cat hello.txt
-   hello world
-   another line
-   
-   # do some new change
-   /d/demo (master)
-   $ vim hello.txt
-   
-   # notice! git check will destory some of your modification if you are not care about it
-   
-   /d/demo (master)
-   $ git diff c87b88b4 hello.txt
-   diff --git a/hello.txt b/hello.txt
-   index 3b18e51..8b5ce7a 100644
-   --- a/hello.txt
-   +++ b/hello.txt
-   @@ -1 +1,3 @@
-    hello world
-   +another line
-   +yet another line
-   
-   /d/demo (master)
-   $ git branch
-   * master
-   
-   /d/demo (master)
-   $ git branch -vv
-   * master 7d7b3d9 X
-   
-   /d/demo (master)
-   $ git branch cat
-   
-   /d/demo (master)
-   $ git log --all --graph  --decorate
-   * commit 7d7b3d91e0121a5e141b3768db7653767bb46b1d (HEAD -> master, cat)
-   | Author: sunmiao0301 <hfut_sm@163.com>
-   | Date:   Mon Dec 27 14:38:41 2021 +0800
-   |
-   |     X
-   |
-   * commit c87b88b4bef7456bc621f711b25464c0fb19fb6b
-     Author: sunmiao0301 <hfut_sm@163.com>
-     Date:   Mon Dec 27 14:27:13 2021 +0800
-   
-         Add hello.txt
-   
-   /d/demo (master)
-   
-   /d/demo (master)
-   $ git checkout cat
-   Switched to branch 'cat'
-   M       hello.txt
-   
-   /d/demo (cat)
-   $ git log --all --graph  --decorate
-   * commit 7d7b3d91e0121a5e141b3768db7653767bb46b1d (HEAD -> cat, master)
-   | Author: sunmiao0301 <hfut_sm@163.com>
-   | Date:   Mon Dec 27 14:38:41 2021 +0800
-   |
-   |     X
-   |
-   * commit c87b88b4bef7456bc621f711b25464c0fb19fb6b
-     Author: sunmiao0301 <hfut_sm@163.com>
-     Date:   Mon Dec 27 14:27:13 2021 +0800
-   
-         Add hello.txt
-   
-   /d/demo (cat)
-   $ git diff
-   diff --git a/hello.txt b/hello.txt
-   index fdff486..8b5ce7a 100644
-   --- a/hello.txt
-   +++ b/hello.txt
-   @@ -1,2 +1,3 @@
-    hello world
-    another line
-   +yet another line
-   
-   /d/demo (cat)
-   $ git log --all --graph  --decorate --oneline
-   * 7d7b3d9 (HEAD -> cat, master) X
-   * c87b88b Add hello.txt
-   
-   ... 53:29
+   msun@ceph57 ~ $ sleep 10000
+   ^Z
+   [1]+  Stopped                 sleep 10000
+   msun@ceph57 ~ $ bg
+   [1]+ sleep 10000 &
+   msun@ceph57 ~ $ jobs
+   [1]+  Running                 sleep 10000 &
+   msun@ceph57 ~ $ sudo pkill -ef sleep
+   [sudo] password for msun: 
+   sleep killed (pid 18430)
+   sleep killed (pid 18431)
+   sleep killed (pid 18432)
+   sleep killed (pid 18433)
+   sleep killed (pid 18434)
+   sleep killed (pid 18435)
+   sleep killed (pid 18436)
+   sleep killed (pid 18437)
+   sleep killed (pid 21512)
+   sudo killed (pid 21988)
+   sleep killed (pid 21991)
+   [1]+  Terminated              sleep 10000
    ```
 
+2. 如果您希望某个进程结束后再开始另外一个进程， 应该如何实现呢？在这个练习中，我们使用 `sleep 60 &` 作为先执行的程序。一种方法是使用 [`wait`](http://man7.org/linux/man-pages/man1/wait.1p.html) 命令。尝试启动这个休眠命令，然后待其结束后再执行 `ls` 命令。
+
+   ```bash
+   sleep 60 | wait && ls
    
+   #
+   msun@ceph57 ~ $ sleep 5 | wait & ls
+   [1] 4666
+   d_for_find  dotfiles.md  hello.txt  loop  loop.txt  ls.txt  show-args.sh  spa ce.html  ssh.log  xargs.html
+   ```
+
+   但是，如果我们在不同的 bash 会话中进行操作，则上述方法就不起作用了。因为 `wait` 只能对子进程起作用。之前我们没有提过的一个特性是，`kill` 命令成功退出时其状态码为 0 ，其他状态则是非0。`kill -0` 则不会发送信号，但是会在进程不存在时返回一个不为0的状态码。请编写一个 bash 函数 `pidwait` ，它接受一个 pid 作为输入参数，然后一直等待直到该进程结束。您需要使用 `sleep` 来避免浪费 CPU 性能。
+
+## 终端多路复用
+
+1. 请完成这个 `tmux` [教程](https://www.hamvocke.com/blog/a-quick-and-easy-guide-to-tmux/) 参考[这些步骤](https://www.hamvocke.com/blog/a-guide-to-customizing-your-tmux-conf/)来学习如何自定义 `tmux`。
+
+## 别名
+
+1. 创建一个 `dc` 别名，它的功能是当我们错误的将 `cd` 输入为 `dc` 时也能正确执行。
+
+   ```bash
+   msun@ceph57 ~ $ alias dc="cd"
+   msun@ceph57 ~ $ dc dir
+   msun@ceph57 ~/dir $ 
+   
+   # 尽管"在默认情况下 shell 并不会保存别名"
+   # 我们试试直接禁用
+   msun@ceph57 ~ $ unalias dc
+   msun@ceph57 ~ $ dc dir
+   dc: Will not attempt to process directory dir
+   ```
+
+2. 执行 `history | awk '{$1="";print substr($0,2)}' | sort | uniq -c | sort -n | tail -n 10` 来获取您最常用的十条命令，尝试为它们创建别名。注意：这个命令只在 Bash 中生效，如果您使用 ZSH，使用`history 1` 替换 `history`。
+
+   ```bash
+   msun@ceph57 ~ $ history | awk '{$1="";print substr($0,2)}' | sort | uniq -c | sort -n | tail -n 10
+        11 unzip html.zip
+        11 vim ls.txt
+        12 sleep 100
+        13 man xargs
+        18 history
+        18 man find
+        22 cd
+        24 jobs
+        27 la
+       141 ls
+   ...
+   ```
+
+## 配置文件
+
+让我们帮助您进一步学习配置文件：
+
+1. 为您的配置文件新建一个文件夹，并设置好版本控制
+2. 在其中添加至少一个配置文件，比如说您的 shell，在其中包含一些自定义设置（可以从设置 `$PS1` 开始）。
+3. 建立一种在新设备进行快速安装配置的方法（无需手动操作）。最简单的方法是写一个 shell 脚本对每个文件使用 `ln -s`，也可以使用[专用工具](https://dotfiles.github.io/utilities/)
+4. 在新的虚拟机上测试该安装脚本。
+5. 将您现有的所有配置文件移动到项目仓库里。
+6. 将项目发布到GitHub。
+
+## 远端设备 — 重要
+
+进行下面的练习需要您先安装一个 Linux 虚拟机（如果已经安装过则可以直接使用），如果您对虚拟机尚不熟悉，可以参考[这篇教程](https://hibbard.eu/install-ubuntu-virtual-box/) 来进行安装。
+
+**出于一举两得的考量，我们就用本地windows连接Linux服务器，最终实现从Windows到Linux服务器的免密登录**
+
+**预备知识**，先在服务器下检查有没有 home/user/.ssh，没有的话，```ssh locanhost```来生成一个(`~/.ssh` 是在运行第一次 `ssh` 命令的时候自动创建的。)
+
+```bash
+msun@ceph57 ~ $ ssh msun@ceph57
+The authenticity of host 'ceph57 (10.10.8.57)' can't be established.
+ECDSA key fingerprint is SHA256:HUtJVYsRZKvKhlFe2TARyNgyfbgsnD4DEsBcRP3jObs.
+ECDSA key fingerprint is MD5:07:f3:a4:67:19:fc:e5:98:8b:70:0a:36:d2:62:b4:25.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added 'ceph57,10.10.8.57' (ECDSA) to the list of known hosts.
+msun@ceph57's password: 
+Last login: Thu Dec 23 09:17:33 2021 from 10.12.3.1
+msun@ceph57 ~ $ cd ~
+msun@ceph57 ~ $ ls -a
+.              .bash_logout   d_for_find   .emacs     .lesshst  ls.txt        .ssh      xargs.html
+..             .bash_profile  dir          .emacs.d   loop      show-args.sh  .viminfo
+.bash_history  .bashrc        dotfiles.md  hello.txt  loop.txt  spa ce.html   .vimrc
+msun@ceph57 ~ $ cd .ssh
+msun@ceph57 ~/.ssh $
+```
+
+前往 `~/.ssh/` 并查看是否已经存在 SSH 密钥对。如果不存在，请使用`ssh-keygen`来创建一个。建议为密钥设置密码然后使用`ssh-agent`，更多信息可以参考 [这里](https://www.ssh.com/ssh/agent)；
+
+```bash
+# 在Windows PowerShell 生成密钥
+PS C:\Users\hfut_> ssh-keygen
+Generating public/private rsa key pair.
+# 选择生成密钥的位置 如果是第一次 直接默认地址就行
+Enter file in which to save the key (C:\Users\hfut_/.ssh/id_rsa):
+# 第一次输入密码
+Enter passphrase (empty for no passphrase):
+# 再次输入密码
+Enter same passphrase again:
+# 私钥完毕
+Your identification has been saved in C:\Users\hfut_/.ssh/id_rsa.
+# 公钥完毕
+Your public key has been saved in C:\Users\hfut_/.ssh/id_rsa.pub.
+# 指纹
+# 以下是 公钥密钥指纹以及它的的可视化，公布它应该是安全的
+The key fingerprint is:
+SHA256:—————————————————————————————————————— hfut_@DESKTOP-HA2C4BG
+The key's randomart image is:
++---[RSA 3072]----+
+|          +O=.oo+|
+|         ++.++. o|
+|        .oooo  =.|
+|       ..  o  +.*|
+|        S . ...*E|
+———————————————————
+———————————————————
+|     = + o .o  . |
+|    o.o   .      |
++----[SHA256]-----+
+```
+
+**关于ssh-agent 如下**
+
+*The `ssh-agent` is a helper program that keeps track of user's [identity keys](https://www.ssh.com/ssh/identity-key) and their [passphrases](https://www.ssh.com/ssh/passphrase). The agent can then use the keys to log into other servers without having the user type in a password or passphrase again. This implements a form of single sign-on (SSO).*
+
+在`.ssh/config`加入下面内容：
+
+```bash
+# Port 字段指定远程主机端口号，默认为 22 。
+# Host 字段配置了登录别名，比如 ssh docker 表示使用别名为 docker 的配置登录远端的服务器。
+# 这里需要注意的是，Host 是支持通配符的， * 代表0～n个非空白字符，? 代表一个非空白字符，! 表示例外通配。
+
+Host msun
+	# 指定登录的用户名
+    User msun
+    # 指定远程主机名，可以直接使用 IP 地址。
+    # 如果这个字段中包含 ‘%h’ ，则实际使用时会被命令行中的主机名替换。
+    # 比如 demo 中如果设置 HostName 0.0.0.0.%h
+    # 那么在运行 ssh docker 后，会把主机名解析为 0.0.0.0.docker。
+    HostName 10.10.8.57
+    # 私钥路径 —— 如果只有一个私钥 就不需要 多个私钥 还是加上吧
+    IdentityFile ~/.ssh/id_rsa
+    ## 此外，因为我用了跳板机 所以这里得加一个 跳板机@ip地址:端口号
+    ProxyJump msun@202.38.95.226:2222
+    
+    # 为了接下来在本机访问服务器
+    # 用到了本地端口转发LocalForward
+    LocalForward 9999:localhost:8888
+```
+
+关于上面的LocalForward，zhp推荐Dynamic 可以实现本地一个端口对接服务器多个端口，这里需要单独开一篇[动态端口转发]()来单独详细介绍了
+
+然后使用 `ssh-copy-id vm` 将您的 ssh 密钥拷贝到服务器。
+
+```bash
+# 命令如下
+cat ~/.ssh/id_rsa.pub | ssh -J msun@202.38.95.226:2222 root@10.10.8.5 tee .ssh/authorized_keys
+
+# 或者直接如下
+ssh-copy-id root@10.10.8.57
+
+# 或者直接拷贝到跳板机和服务器
+# 跳板机
+msun@ubuntu:~/.ssh$ vim authorized_keys
+# 服务器
+msun@ceph57 ~/.ssh $ vim authorized_keys
+```
+
+此时可以先测试一下 我们在Windows PowerShell上运行
+
+```bash
+# 在本地机上配置好config之后 直接ssh msun(也就是Host别名即可)
+PS C:\Users\hfut_> ssh msun
+Last login: Fri Dec 24 09:58:54 2021 from 10.12.3.1
+root@ceph57 ~ #
+
+# p.s. 如果debug是文件权限问题，权限修改一下
+msun@ceph57 /etc/ssh $ chmod 700 ~/.ssh
+msun@ceph57 /etc/ssh $ chmod 600 ~/.ssh/authorized_keys
+```
+
+使用`python -m http.server 8888` 在您的虚拟机中启动一个 Web 服务器并通过本机的`http://localhost:9999` 访问虚拟机上的 Web 服务器
+
+```bash
+0## 注意 这里的命令的 http.server 属于python3 如下
+# If Python version returned above is 3.X
+python3 -m http.server
+
+# 所以我们应该运行的是 SimpleHTTPServer
+# If Python version returned above is 2.X
+root@ceph57 ~ # python -m SimpleHTTPServer 8888
+Serving HTTP on 0.0.0.0 port 8888 ...
+
+## 然后我们已经在本地运行了一个本地端口转发
+## 此时我们在本地 Windows PowerShell 连接上服务器
+PS C:\Users\hfut_> ssh root57
+Last login: Fri Dec 24 12:34:02 2021 from 10.12.3.1
+root@ceph57 ~ #
+
+## 并且我们已经在config中配置了本地转发端口如下
+LocalForward 9999:localhost:8888
+## 此时就可以直接在本地浏览器打开 
+http://localhost:9999/
+## 就可以看到如下结果
+Directory listing for /
+.aws/
+.bash_history
+.bash_logout
+.bash_profile
+.bashrc
+.cache/
+.config/
+.cshrc
+.docker/
+.emacs
+.emacs.d/
+.gitconfig
+.kube/
+.lesshst
+.minikube/
+.pki/
+.redhat/
+.ssh/
+.tcshrc
+.tldr/
+.viminfo
+.vimrc
+.vscode-server/
+anaconda-ks.cfg
+br_netfilter
+calico.yaml
+cluster.yaml
+common.yaml
+hello.txt
+rook/
+set-proxy
+summiao/
+unset-proxy
+zhp/
+```
+
+使用`sudo vim /etc/ssh/sshd_config` 编辑 SSH 服务器配置，通过修改`PasswordAuthentication`的值来禁用密码验证。通过修改`PermitRootLogin`的值来禁用 root 登录。然后使用`sudo service sshd restart`重启 `ssh` 服务器，然后重新尝试。
+
+(附加题) 在虚拟机中安装 [`mosh`](https://mosh.org/) 并启动连接。然后断开服务器/虚拟机的网络适配器。mosh可以恢复连接吗？
+
+(附加题) 查看`ssh`的`-N` 和 `-f` 选项的作用，找出在后台进行端口转发的命令是什么？
+
+**在做之前需要明确的：对于我们的情境，ssh是用于本地机的指令。**
+
+```bash
+# 原本 我们是
+PS C:\Users\hfut_> ssh root57
+Last login: Mon Dec 27 09:29:48 2021 from 10.12.3.1
+root@ceph57 ~ # 
+
+-N      Do not execute a remote command.  This is useful for just forwarding ports.
+
+-f      Requests ssh to go to background just before command execution.  This is useful if ssh is going to ask for passwords or passphrases, but the user wants it in the background.  This implies -n.  The recommended way to start X11 programs at a remote site is with something like ssh -f host xterm.
+
+If the ExitOnForwardFailure configuration option is set to ``yes'', then a client started with -f will wait for all remote port forwards to be successfully established before placing itself in the background.
+
+# 由上可知 -N 使得不执行远端命令 对端口转发生效
+# -f 使得在后台执行
+# 所以如果想要本地机在后台进行端口转发的命令 应该是
+PS C:\Users\hfut_> ssh -fN root57
+```
+
+
+
+## Supplement from video
+
+```bash
+# 建立一个在后台的
+msun@ceph57 ~ $ nohup sleep 2000 &
+[3] 28099
+[2]   Terminated              sleep 1000
+msun@ceph57 ~ $ nohup: ignoring input and appending output to ‘nohup.out’
+jobs
+[3]+  Running                 nohup sleep 2000 &
+msun@ceph57 ~ $ jobs
+[3]+  Running                 nohup sleep 2000 &
+msun@ceph57 ~ $ sleep 1000
+^Z
+[4]+  Stopped                 sleep 1000
+msun@ceph57 ~ $ jobs
+[3]-  Running                 nohup sleep 2000 &
+[4]+  Stopped                 sleep 1000
+msun@ceph57 ~ $ bg %4
+[4]+ sleep 1000 &
+msun@ceph57 ~ $ jobs
+[3]-  Running                 nohup sleep 2000 &
+[4]+  Running                 sleep 1000 &
+msun@ceph57 ~ $ kill -STOP %4
+
+[4]+  Stopped                 sleep 1000
+msun@ceph57 ~ $ jobs
+[3]-  Running                 nohup sleep 2000 &
+[4]+  Stopped                 sleep 1000
+msun@ceph57 ~ $ kill -HUP %4
+[4]+  Hangup                  sleep 1000
+msun@ceph57 ~ $ jobs
+[3]+  Running                 nohup sleep 2000 &
+msun@ceph57 ~ $ kill -HUP %3
+msun@ceph57 ~ $ jobs
+[3]-  Running                 nohup sleep 2000 &
+
+msun@ceph57 ~ $ kill -KILL %3
+msun@ceph57 ~ $ jobs
+
+# bg 与 fg
+
+## tmux
+- Sessions
+  - Windows
+    - panes
+
+# 别名的用处之 —— 为一些关键的 flag 加上默认执行
+# 如下 -i 会询问是否overwrite 如此写会
+root@ceph57 ~ # alias mv="mv -i"
+root@ceph57 ~ #mv a.sh b.sh
+overwrite b.sh? (y/n [n])
+
+# alise mv 能够查看其已经设定的别名
+root@ceph57 ~ # alias mv
+alias mv='mv -i'
+
+# 但是alise的设定都会在关闭terminal之后消失 
+# 所以如果需要其永久生效 我们可以编辑点文件dotfile
+## 对于bash而言 点文件是 ~/.bashrc (在home文件夹下) 我们试试
+root@ceph57 ~ # vim ~/.bashrc
+# by miao
+alias sl='ls'
+
+# bash 或是 source ~/.bashrc
+root@ceph57 ~ # bash
+root@ceph57 ~ # sl
+anaconda-ks.cfg  calico.yaml   common.yaml  rook       summiao      zhp
+br_netfilter     cluster.yaml  hello.txt    set-proxy  unset-proxy
+
+# 其次 还有 ~/.vimrc 
+
+# 此外，还可以修改字体 —— font
+vim ~/.config/alacritty
+size: 40.0 -> 18.0
+
+
+```
+
+
+
+
+
