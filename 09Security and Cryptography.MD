@@ -263,45 +263,48 @@ Keybase主要使用[社交网络证明 (social proof)](https://keybase.io/blog/c
    使用 [OpenSSL](https://www.openssl.org/)的AES模式加密一个文件: `openssl aes-256-cbc -salt -in {源文件名} -out {加密文件名}`。 使用`cat`或者`hexdump`对比源文件和加密的文件，再用 `openssl aes-256-cbc -d -in {加密文件名} -out {解密文件名}` 命令解密刚刚加密的文件。最后使用`cmp`命令确认源文件和解密后的文件内容相同。
 
    ```bash
-   root@ceph57 ~/summiao
    # cat hello.txt
    hello
    
-   root@ceph57 ~/summiao
    # openssl aes-256-cbc -salt -in hello.txt -out sechello.txt
    enter aes-256-cbc encryption password:
    Verifying - enter aes-256-cbc encryption password:
    
    # hexdump - display file contents in ascii, decimal, hexadecimal, or octal
-   root@ceph57 ~/summiao
    # hexdump hello.txt
    0000000 6568 6c6c 0a6f                         
    0000006
-   root@ceph57 ~/summiao
    # hexdump sechello.txt
    0000000 6153 746c 6465 5f5f 0828 3a81 a3cc 21bc
    0000010 d881 24fe 3874 dc55 3c57 528a bae7 334c
    0000020
    
    # 使用cat对比
-   root@ceph57 ~/summiao
    # cat hello.txt
    hello
-   root@ceph57 ~/summiao
+   
    # cat sechello.txt
    Salted__:̣¼!پ$t8Uۗ<R繌3
    
    # 进行解密
-   root@ceph57 ~/summiao
    # openssl aes-256-cbc -d -in sechello.txt -out dhello.txt
    enter aes-256-cbc decryption password:
-   root@ceph57 ~/summiao
+   
+   # cat对比
    # cat dhello.txt
    hello
-   root@ceph57 ~/summiao
+   
+   # hexdump对比
    # hexdump dhello.txt
    0000000 6568 6c6c 0a6f                         
    0000006
+   
+   # cmp对比 — 注意 如果cmp无输出 表示文件没有不同 有不同才有输出
+   
+   # cmp dhello.txt hello.txt
+   
+   # cmp hello1.txt hello.txt
+   hello1.txt hello.txt differ: byte 6, line 1
    ```
 
 4. 非对称加密
