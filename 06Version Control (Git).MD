@@ -384,8 +384,6 @@ Git 处理这些场景的方法是使用一种叫做 “暂存区（staging area
       diff --git a/2019/course-overview.md b/_2019/course-overview.md
       similarity index 100%
       rename from 2019/course-overview.md
-      
-      
       ```
 
 3. 使用 Git 时的一个常见错误是提交本不应该由 Git 管理的大文件，或是将含有敏感信息的文件提交给 Git 。尝试向仓库中添加一个文件并添加提交信息，然后将其从历史中删除 ( [这篇文章也许会有帮助](https://help.github.com/articles/removing-sensitive-data-from-a-repository/))；
