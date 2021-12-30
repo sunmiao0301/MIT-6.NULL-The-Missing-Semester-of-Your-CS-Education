@@ -640,18 +640,176 @@ Git 处理这些场景的方法是使用一种叫做 “暂存区（staging area
 
 7. 克隆 [本课程网站的仓库](https://github.com/missing-semester/missing-semester)，找找有没有错别字或其他可以改进的地方，在 GitHub 上发起拉取请求（Pull Request）；
 
-   *详细fork及pr过程参见[这里](https://docs.github.com/en/get-started/quickstart/fork-a-repo)*
+   *详细fork及pr过程参见[这里](https://docs.github.com/en/get-started/quickstart/fork-a-repo)下面是我的一次成功fork&PR经历*
+
+   *以下综合参阅[github教程1](https://docs.github.com/en/get-started/quickstart/fork-a-repo)和[github教程2](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/syncing-a-fork)和[jarv.isblog](https://jarv.is/notes/how-to-pull-request-fork-github/)*
 
    ```bash
-   # Propose changes to someone else's project
-   # For example, you can use forks to propose changes related to fixing a bug. Rather than logging an issue for a bug you've found, you can:
-   ## Fork the repository.
-   ## clone the repo that you forked just now. (use https)
-   ## Make the fix.
-   ## push your work to your GitHub.
-   ## Submit a pull request (PR) to the project owner.\
+   # 首先克隆你的fork，注意是克隆原始存储库到你的仓库的fork而不是原始存储库
+   /d/repo (master)
+   $ git clone https://github.com/sunmiao0301/missing-semester.git
+   Cloning into 'missing-semester'...
+   remote: Enumerating objects: 2071, done.
+   remote: Counting objects: 100% (173/173), done.
+   remote: Compressing objects: 100% (92/92), done.
+   remote: Total 2071 (delta 88), reused 132 (delta 73), pack-reused 1898
+   Receiving objects: 100% (2071/2071), 15.63 MiB | 2.73 MiB/s, done.
+   Resolving deltas: 100% (1214/1214), done.
    
+   # 进入克隆出的本地存储库
+   /d/repo (master)
+   $ cd missing-semester
    
+   # 查看
+   /d/repo/missing-semester (master)
+   $ git remote -v
+   origin  https://github.com/sunmiao0301/missing-semester.git (fetch)
+   origin  https://github.com/sunmiao0301/missing-semester.git (push)
+   
+   # 新建一个上游upstream，注意此时clone的是原始存储库的https，而不是fork得到的存储库的https
+   /d/repo/missing-semester (master)
+   $ git remote add upstream https://github.com/missing-semester/missing-semester.git
+   
+   # 再次检查一下 发现多出了upstream
+   /d/repo/missing-semester (master)
+   $ git remote -v
+   origin  https://github.com/sunmiao0301/missing-semester.git (fetch)
+   origin  https://github.com/sunmiao0301/missing-semester.git (push)
+   upstream        https://github.com/missing-semester/missing-semester.git (fetch)
+   upstream        https://github.com/missing-semester/missing-semester.git (push)
+   
+   # 拿来上游
+   /d/repo/missing-semester (master)
+   $ git fetch upstream
+   remote: Enumerating objects: 8, done.
+   remote: Counting objects: 100% (8/8), done.
+   remote: Compressing objects: 100% (2/2), done.
+   remote: Total 5 (delta 3), reused 5 (delta 3), pack-reused 0
+   Unpacking objects: 100% (5/5), 746 bytes | 7.00 KiB/s, done.
+   From https://github.com/missing-semester/missing-semester
+    * [new branch]      assets     -> upstream/assets
+    * [new branch]      master     -> upstream/master
+   
+   # 进入master（虽然早就在master里面了，但是这是需要注意的一个步骤）
+   /d/repo/missing-semester (master)
+   $ git checkout master
+   Already on 'master'
+   Your branch is up to date with 'origin/master'.
+   
+   # 合并上游和本地master
+   /d/repo/missing-semester (master)
+   $ git merge upstream/master
+   Updating c2f9535..0601c2c
+   Fast-forward
+    _2020/data-wrangling.md | 2 +-
+    1 file changed, 1 insertion(+), 1 deletion(-)
+   
+   ## 新建一个本地master之外的分支 ——> devise-some-sentence 
+   ## 并且进入
+   /d/repo/missing-semester (master)
+   $ git checkout -b devise-some-sentence upstream/master
+   Switched to a new branch 'devise-some-sentence'
+   Branch 'devise-some-sentence' set up to track remote branch 'master' from 'upstream'.
+   
+   # add
+   /d/repo/missing-semester (devise-some-sentence)
+   $ git add .
+   
+   # commit
+   /d/repo/missing-semester (devise-some-sentence)
+   $ git commit -m "do some change to improve the reading experience"
+   [devise-some-sentence 68083ef] do some change to improve the reading experience
+    1 file changed, 13 insertions(+), 13 deletions(-)
+   
+   # push到新分支 devise-some-senetence 而不是master
+   /d/repo/missing-semester (devise-some-sentence)
+   $ git push -u origin devise-some-sentence
+   Enumerating objects: 7, done.
+   Counting objects: 100% (7/7), done.
+   Delta compression using up to 12 threads
+   Compressing objects: 100% (4/4), done.
+   Writing objects: 100% (4/4), 467 bytes | 467.00 KiB/s, done.
+   Total 4 (delta 3), reused 0 (delta 0), pack-reused 0
+   remote: Resolving deltas: 100% (3/3), completed with 3 local objects.
+   remote:
+   remote: Create a pull request for 'devise-some-sentence' on GitHub by visiting:
+   remote:      https://github.com/sunmiao0301/missing-semester/pull/new/devise-some-sentence
+   remote:
+   To https://github.com/sunmiao0301/missing-semester.git
+    * [new branch]      devise-some-sentence -> devise-some-sentence
+   Branch 'devise-some-sentence' set up to track remote branch 'devise-some-sentence' from 'origin'.
+   ```
+
+   完成这一系列操作之后来到GitHub，可以看到在原始存储库下面可以PR了
+
+   ![1](https://raw.githubusercontent.com/sunmiao0301/Public-Pic-Bed/main/1229fork%26PR.png)
+
+   往下翻动，也可以看到你所做的变动
+
+   ![2](https://raw.githubusercontent.com/sunmiao0301/Public-Pic-Bed/main/1229somechangesinbranch.png)
+
+   提交PR之后，可以看到需要被原主人review的提示
+
+   ![3](https://raw.githubusercontent.com/sunmiao0301/Public-Pic-Bed/main/1229resultinPR.png)
+
+   在项目里面，也可以看到多了一个在gitbash里创建的branch。
+
+   ![4](https://raw.githubusercontent.com/sunmiao0301/Public-Pic-Bed/main/1229newbranch.png)
+
+   ```bash
+   # 聊天记录
+   淼:
+   我的理解是
+   
+   淼:
+   fork
+   
+   淼:
+   然后把你fork的仓库clone到本地
+   
+   淼:
+   这时候还没有上游
+   
+   淼:
+   然后在gitbash里进入这个本地
+   
+   淼:
+   通过原始存储库clone来新建一个上游
+   
+   淼:
+   然后这个上游就可以用来更新仓库主人的最新动态
+   
+   淼:
+   但是这时候你本地只有一个master
+   
+   淼:
+   master可以留着去用来fetch上游的变动
+   
+   淼:
+   所以再新建一个分支branchzhp
+   
+   淼:
+   然后本地修改
+   
+   淼:
+   add & commit
+   
+   淼:
+   最后push到branchzhp里面
+   
+   淼:
+   最后去GitHub上，就能看到你的修改，继而提交PR就完事了
+   
+   沧音:
+   可以动而且有必要动
+   
+   淼:
+   愿闻其详
+   
+   沧音:
+   如果你的改动不算太小，比如说 milestone 级别的，可以同步上游更新之后，把自己的分支合并到 master，再在master上push
+   或者说你仅仅只改动一次（PR之后就删库），可以直接在msater上修改，把master分支push到上游的小分支
+   再或者你打算长期参与此项目（这个时候就不用fork了，直接变成contributor），那么长期积累的commit也可以直接合并到master作为一个大更新push到上游（是否merge PR，还要看原开发者的review意见）
    ```
 
    ## Supplement from video
