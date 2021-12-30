@@ -84,7 +84,64 @@ p.s.
 ```bash
 # socks5与http/s有何区别
 export all_proxy=socks5://127.0.0.1:33211
+
+# 测试
+/d/repo (master)
+$ env|grep -i proxy
+
+/d/repo (master)
+$ curl ipinfo.io
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   255  100   255    0     0    608      0 --:--:-- --:--:-- --:--:--   611{
+  "ip": "210.45.123.248",
+  "city": "Hefei",
+  "region": "Anhui",
+  "country": "CN",
+  "loc": "31.8639,117.2808",
+  "org": "AS4538 China Education and Research Network Center",
+  "timezone": "Asia/Shanghai",
+  "readme": "https://ipinfo.io/missingauth"
+}
+
+/d/repo (master)
+$ export all_proxy=socks5://127.0.0.1:33211
+
+/d/repo (master)
+$ env|grep -i proxy
+all_proxy=socks5://127.0.0.1:33211
+
+/d/repo (master)
+$ curl ipinfo.io
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   283  100   283    0     0    719      0 --:--:-- --:--:-- --:--:--   718{
+  "ip": "178.173.225.85",
+  "hostname": "host-by.nerocloud.io",
+  "city": "Hong Kong",
+  "region": "Central and Western",
+  "country": "HK",
+  "loc": "22.2783,114.1747",
+  "org": "AS48024 NEROCLOUD LTD",
+  "timezone": "Asia/Hong_Kong",
+  "readme": "https://ipinfo.io/missingauth"
+}
+
+# 注意这里直接ping github.com是不行的
+# 需要在 https://ipaddress.com/website/github.com 得到GitHub的ip地址为140.82.114.3
+# 可以ping通
+/d/repo (master)
+$ ping 140.82.114.3
+
+Pinging 140.82.114.3 with 32 bytes of data:
+Reply from 140.82.114.3: bytes=32 time=325ms TTL=38
+Reply from 140.82.114.3: bytes=32 time=327ms TTL=38
+
+# 说明以下也是可以的
+export all_proxy=socks5://127.0.0.1:33211
 ```
+
+
 
 
 
