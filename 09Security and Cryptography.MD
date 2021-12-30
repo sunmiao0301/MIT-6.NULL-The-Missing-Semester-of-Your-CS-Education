@@ -1,5 +1,7 @@
 ### 安全和密码学
 
+*—— 课后练习未全部完成*
+
 去年的[这节课](https://missing-semester-cn.github.io/2019/security/)我们从计算机 *用户* 的角度探讨了增强隐私保护和安全的方法。 今年我们将关注比如散列函数、密钥生成函数、对称/非对称密码体系这些安全和密码学的概念是如何应用于前几节课所学到的工具（Git和SSH）中的。
 
 本课程不能作为计算机系统安全 ([6.858](https://css.csail.mit.edu/6.858/)) 或者 密码学 ([6.857](https://courses.csail.mit.edu/6.857/)以及6.875)的替代。 如果你不是密码学的专家，请不要[试图创造或者修改加密算法](https://www.schneier.com/blog/archives/2015/05/amateurs_produc.html)。从事和计算机系统安全相关的工作同理。

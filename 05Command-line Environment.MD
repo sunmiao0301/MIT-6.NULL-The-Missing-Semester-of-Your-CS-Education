@@ -1,5 +1,7 @@
 ### 命令行环境
 
+*—— 课后练习未全部完成*
+
 *—— 见Supplement from video*
 
 当您使用 shell 进行工作时，可以使用一些方法改善您的工作流，本节课我们就来讨论这些方法。我们已经使用 shell 一段时间了，但是到目前为止我们的关注点主要集中在使用不同的命令上面。现在，我们将会学习：
@@ -804,10 +806,105 @@ Host *.mit.edu
 让我们帮助您进一步学习配置文件：
 
 1. 为您的配置文件新建一个文件夹，并设置好版本控制
+
+   ```bash
+   msun@ceph57 ~ $ mkdir dotfiles
+   ```
+
 2. 在其中添加至少一个配置文件，比如说您的 shell，在其中包含一些自定义设置（可以从设置 `$PS1` 开始）。
+
 3. 建立一种在新设备进行快速安装配置的方法（无需手动操作）。最简单的方法是写一个 shell 脚本对每个文件使用 `ln -s`，也可以使用[专用工具](https://dotfiles.github.io/utilities/)
+
+   ```bash
+   #!/bin/bash
+   files="bashrc vimrc "
+   
+   for file in $files; do
+    # ln - make links between files
+      ln -s ~/dotfiles/$file ~/.$file
+   done
+   ```
+
+   分为[硬链接和软链接](https://chinese.freecodecamp.org/news/the-linux-commands-handbook/)
+
+   ```bash
+   # 硬链接
+   ln <源文件路径> <链接路径>
+   ln recipes.txt newrecipes.txt
+   
+   # 硬链接现在很少使用。它有一些弱点：你无法链接到目录，也无法链接到外部文件系统（磁盘驱动器）。
+   # 现在，如果你编辑这对文件中的任何一个，另一个文件的内容也会随之更新。
+   # 即使你删除了源文件，链接文件仍然会包含源文件的内容。那是因为直到创建硬链接时，源文件还没有被删除。
+   
+   # 如下测试
+   msun@ceph57 ~ $ echo s > s.txt
+   
+   # 注意 创建链接的时候 被链接文件夹不需要存在
+   msun@ceph57 ~ $ ls
+   s.txt
+   msun@ceph57 ~ $ cat s.txt
+   s
+   
+   # 创建硬链接
+   msun@ceph57 ~ $ ln s.txt l.txt
+   msun@ceph57 ~ $ ls
+   l.txt  s.txt
+   msun@ceph57 ~ $ cat l.txt
+   s
+   msun@ceph57 ~ $ rm -f s.txt
+   
+   # 即使你删除了源文件，链接文件仍然会包含源文件的内容。那是因为直到创建硬链接时，源文件还没有被删除
+   msun@ceph57 ~ $ cat l.txt
+   s
+   ```
+
+   **一言以蔽之，硬链接用的不多**
+
+   ```bash
+   # 软链接
+   # 你可以使用 ln 命令的 -s 参数创建一个软链接
+   ln -s <源文件路径> <链接路径>
+   ln -s recipes.txt newrecipes.txt
+   
+   # 软链接则有所不同，它更为强大一些，你可以用它链接到其他的文件系统和目录。但请注意，当你删除源文件时，这个链接会断掉。
+   # 测试如下
+   msun@ceph57 ~ $ echo s > s.txt
+   msun@ceph57 ~ $ ls
+   dotfiles  loop  show-args.sh  sm-vim  s.txt
+   msun@ceph57 ~ $ ln -s s.txt l.txt
+   msun@ceph57 ~ $ ls
+   dotfiles  loop  l.txt  show-args.sh  sm-vim  s.txt
+   msun@ceph57 ~ $ 
+   
+   # 并且在软链接情况下，当你用 ls -al 列出文件时，你可以看见标出了链接关系
+   msun@ceph57 ~ $ ls -al
+   lrwxrwxrwx  1 msun msun     5 Dec 30 17:35 l.txt -> s.txt
+   
+   # 现在，如果你删除源文件，链接就会断掉，如果你在终端里尝试访问它，Shell 会提示 "No such file or directory" （没有这个文件或目录）
+   msun@ceph57 ~ $ rm -f s.txt
+   msun@ceph57 ~ $ ls
+   dotfiles  loop  l.txt  show-args.sh  sm-vim
+   msun@ceph57 ~ $ cat l.txt
+   cat: l.txt: No such file or directory
+   # 如果开了终端颜色，还可以看到l.txt由浅蓝色变成红色
+   ```
+
+   **由以上可知，我们创建点文件的软链接的时候 应该是：**
+
+   ```bash
+   ln -s ~/dotfiles/$file ~/.$file
+   ```
+
+   **也就是把dotfile文件内的源文件，链接，给到系统的配置文件。**
+
+   做到这里，我感觉这个方法不太方便，不如直接如下
+
+   ![1230scporlink.png](https://raw.githubusercontent.com/sunmiao0301/Public-Pic-Bed/main/1230scporlink.png)
+
 4. 在新的虚拟机上测试该安装脚本。
+
 5. 将您现有的所有配置文件移动到项目仓库里。
+
 6. 将项目发布到GitHub。
 
 ## 远端设备 — 重要
@@ -1096,7 +1193,6 @@ size: 40.0 -> 18.0
 
 
 ```
-
 
 
 
