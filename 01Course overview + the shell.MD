@@ -725,4 +725,3 @@ drwxr-xr-x.  19 root root  267 Nov 30 14:10 var
 ## 奇技淫巧
 jon@xpanse intel_backlight ~ $ echo 1060 | sudo tee brightness
 ```
-
