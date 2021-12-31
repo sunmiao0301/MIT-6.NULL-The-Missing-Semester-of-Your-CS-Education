@@ -897,15 +897,150 @@ Host *.mit.edu
 
    **也就是把dotfile文件内的源文件，链接，给到系统的配置文件。**
 
-   做到这里，我感觉这个方法不太方便，不如直接如下
+   zhp表示
 
    ![1230scporlink.png](https://raw.githubusercontent.com/sunmiao0301/Public-Pic-Bed/main/1230scporlink.png)
 
+   但是可以尝试，脚本如下：
+
+   ```bash
+   ########### setup
+   #!/bin/bash
+   # 注意这里隐藏文件是不太好上传到github上的，这里files就不带点，在脚本里面再加上点就可以了。
+   # 注意 文件写上没关系，因为已经存在的文件会报错，但是不影响未存在的文件被创建。
+   # 如下
+   msun@ceph57 ~/dotfiles $ ./setup-all
+   ln: failed to create symbolic link ‘/home/msun/.bashrc’: File exists
+   # 但是~/.vimrc 是仍旧被创建了的
+   
+   files="bashrc vimrc"
+   
+   for file in $files; do
+    # ln - make links between files
+      ln -s ~/dotfiles/$file ~/.$file
+   done
+   
+   # 此时我已将~/.vimrc删除，并新建了~/dotfiles/.vimrc文件
+   # 执行
+   msun@ceph57 ~/dotfiles $ ./setup-all
+   msun@ceph57 ~/dotfiles $ cd 
+   # 成功
+   msun@ceph57 ~ $ la
+   lrwxrwxrwx  1 msun msun    25 Dec 31 10:13 .vimrc -> /home/msun/dotfiles/vimrc
+   
+   # 进入vim也可以看到各项配置都生效了
+   ```
+
 4. 在新的虚拟机上测试该安装脚本。
+
+   ```bash
+   # 已测试 如上
+   ```
 
 5. 将您现有的所有配置文件移动到项目仓库里。
 
 6. 将项目发布到GitHub。
+
+   ```bash
+   # 在国内，sshyyds，对于自己仓库而言，ssh可以无视GFW
+   
+   # ssh-keygen部分省略
+   
+   # 
+   msun@ceph57 ~/.ssh $ ssh -T git@github.com
+   The authenticity of host 'github.com (20.205.243.166)' can't be established.
+   ECDSA key fingerprint is SHA256:p2QAMXNIC1TJYWeIOttrVc98/R1BUFWu3/LiyKgUfQM.
+   ECDSA key fingerprint is MD5:7b:99:81:1e:4c:91:a5:0d:5a:2e:2e:80:13:3f:24:ca.
+   Are you sure you want to continue connecting (yes/no)? yes
+   Warning: Permanently added 'github.com,20.205.243.166' (ECDSA) to the list of known hosts.
+   Hi sunmiao0301! You've successfully authenticated, but GitHub does not provide shell access.
+   
+   msun@ceph57 ~ $ mkdir github
+   msun@ceph57 ~ $ cd github
+   msun@ceph57 ~/github $ git clone git@github.com:sunmiao0301/dotfiles.git
+   Cloning into 'dotfiles'...
+   remote: Enumerating objects: 23, done.
+   remote: Counting objects: 100% (23/23), done.
+   remote: Compressing objects: 100% (18/18), done.
+   remote: Total 23 (delta 2), reused 0 (delta 0), pack-reused 0
+   Receiving objects: 100% (23/23), 6.71 KiB | 0 bytes/s, done.
+   Resolving deltas: 100% (2/2), done.
+   msun@ceph57 ~/github $ ls
+   dotfiles
+   msun@ceph57 ~/github $ cd dotfiles
+   msun@ceph57 ~/github/dotfiles $ ls
+   README.md  vim
+   msun@ceph57 ~/github/dotfiles $ echo ssh yyds - a message from msun@10.10.8.57 > sshyyds
+   msun@ceph57 ~/github/dotfiles $ ls
+   README.md  sshyyds  vim
+   
+   msun@ceph57 ~/github/dotfiles $ echo with https, you cant git clone anything from github even thats your repo \(cos no one knows\), but if you configure ssh between your server \(without proxy\) and your github, you can git clone your own repo with ssh \(ignoring The GFW'!'\)>>sshyyds
+   
+   msun@ceph57 ~/github/dotfiles $ ls
+   README.md  sshyyds  vim
+   msun@ceph57 ~/github/dotfiles $ git status
+   # On branch main
+   # Untracked files:
+   #   (use "git add <file>..." to include in what will be committed)
+   #
+   #	sshyyds
+   nothing added to commit but untracked files present (use "git add" to track)
+   msun@ceph57 ~/github/dotfiles $ git add ./
+   msun@ceph57 ~/github/dotfiles $ git status
+   # On branch main
+   # Changes to be committed:
+   #   (use "git reset HEAD <file>..." to unstage)
+   #
+   #	new file:   sshyyds
+   #
+   msun@ceph57 ~/github/dotfiles $ git commit -m "message from msun@10.10.8.57"
+   
+   *** Please tell me who you are.
+   
+   Run
+   
+     git config --global user.email "you@example.com"
+     git config --global user.name "Your Name"
+   
+   to set your account's default identity.
+   Omit --global to set the identity only in this repository.
+   
+   fatal: empty ident name (for <msun@ceph57.(none)>) not allowed
+   msun@ceph57 ~/github/dotfiles $ git config --global user.email "hfut_sm@163.com"
+   msun@ceph57 ~/github/dotfiles $ git config --global user.name "sunmiao0301"
+   msun@ceph57 ~/github/dotfiles $ git commit -m "message from msun@10.10.8.57"
+   [main 6236e7d] message from msun@10.10.8.57
+    1 file changed, 2 insertions(+)
+    create mode 100644 sshyyds
+   msun@ceph57 ~/github/dotfiles $ git status
+   # On branch main
+   # Your branch is ahead of 'origin/main' by 1 commit.
+   #   (use "git push" to publish your local commits)
+   #
+   nothing to commit, working directory clean
+   msun@ceph57 ~/github/dotfiles $ git push
+   warning: push.default is unset; its implicit value is changing in
+   Git 2.0 from 'matching' to 'simple'. To squelch this message
+   and maintain the current behavior after the default changes, use:
+   
+     git config --global push.default matching
+   
+   To squelch this message and adopt the new behavior now, use:
+   
+     git config --global push.default simple
+   
+   See 'git help config' and search for 'push.default' for further information.
+   (the 'simple' mode was introduced in Git 1.7.11. Use the similar mode
+   'current' instead of 'simple' if you sometimes use older versions of Git)
+   
+   Counting objects: 4, done.
+   Delta compression using up to 4 threads.
+   Compressing objects: 100% (3/3), done.
+   Writing objects: 100% (3/3), 495 bytes | 0 bytes/s, done.
+   Total 3 (delta 0), reused 0 (delta 0)
+   To git@github.com:sunmiao0301/dotfiles.git
+      a797ac4..6236e7d  main -> main
+   ```
 
 ## 远端设备 — 重要
 
@@ -1030,7 +1165,7 @@ msun@ceph57 /etc/ssh $ chmod 600 ~/.ssh/authorized_keys
 使用`python -m http.server 8888` 在您的虚拟机中启动一个 Web 服务器并通过本机的`http://localhost:9999` 访问虚拟机上的 Web 服务器
 
 ```bash
-0## 注意 这里的命令的 http.server 属于python3 如下
+# 注意 这里的命令的 http.server 属于python3 如下
 # If Python version returned above is 3.X
 python3 -m http.server
 
@@ -1113,8 +1248,6 @@ If the ExitOnForwardFailure configuration option is set to ``yes'', then a clien
 PS C:\Users\hfut_> ssh -fN root57
 ```
 
-
-
 ## Supplement from video
 
 ```bash
@@ -1190,8 +1323,6 @@ br_netfilter     cluster.yaml  hello.txt    set-proxy  unset-proxy
 # 此外，还可以修改字体 —— font
 vim ~/.config/alacritty
 size: 40.0 -> 18.0
-
-
 ```
 
 

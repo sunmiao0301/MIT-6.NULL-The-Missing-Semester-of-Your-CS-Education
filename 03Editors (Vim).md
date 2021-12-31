@@ -379,7 +379,7 @@ set editing-mode vi
    ![1230dir-is-a-kind-of-file.png](https://raw.githubusercontent.com/sunmiao0301/Public-Pic-Bed/main/1230dir-is-a-kind-of-file.png)
 
    ```bash
-   # 对于重命名而言，mv可以对文件夹重命名，rename对文件重命名
+   # 对于重命名而言，mv可以对文件夹或是文件重命名，rename对文件重命名并且是三参数
    msun@ceph57 ~ $ mv vimrc sm-vim
    msun@ceph57 ~ $ ls
    loop  show-args.sh  sm-vim

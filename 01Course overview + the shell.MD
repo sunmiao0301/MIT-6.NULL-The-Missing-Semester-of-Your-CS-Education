@@ -395,11 +395,21 @@ dir         hello.txt    loop.txt  nohup.out  spa ce.html
 root@ceph57 /home/msun
 
 # tree一下 其中的关键文件是: root和home在根目录下，其他用户在home下
+# 配置文件是相对于一个一个用户而言的
 /
 ├── root
+│   ├── .ssh
+│   ├── .bashrc
+│   └── .vimrc
 ├── home
 │   ├── user1
+│   │   ├── .ssh
+│   │   ├── .bashrc
+│   │   └── .vimrc
 │   └── user2
+│       ├── .ssh
+│       ├── .bashrc
+│       └── .vimrc
 └── ...
 ```
 

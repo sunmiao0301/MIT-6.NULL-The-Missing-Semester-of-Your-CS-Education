@@ -141,7 +141,30 @@ Reply from 140.82.114.3: bytes=32 time=327ms TTL=38
 export all_proxy=socks5://127.0.0.1:33211
 ```
 
+***此外，linux作为一个多用户系统，其root用户（较特殊）与其他用户相比，是在根目录/root中的，而其他普通用户都是在根目录下的home目录下/home/sunmiao中的***
 
+***还有重要的一点是，各自的配置文件，或是密钥文件.ssh都是相对于一个个用户而言，所以***
+
+![1231rootandusr.png](https://raw.githubusercontent.com/sunmiao0301/Public-Pic-Bed/main/1231rootandusr.png)
+
+```bash
+# tree一下 其中的关键文件是: root和home在根目录下，其他用户在home下
+/
+├── root
+│   ├── .ssh
+│   ├── .bashrc
+│   └── .vimrc
+├── home
+│   ├── user1
+│   │   ├── .ssh
+│   │   ├── .bashrc
+│   │   └── .vimrc
+│   └── user2
+│       ├── .ssh
+│       ├── .bashrc
+│       └── .vimrc
+└── ...
+```
 
 
 
